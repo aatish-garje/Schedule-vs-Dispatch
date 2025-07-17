@@ -133,7 +133,170 @@ if uploaded_file is not None:
 
     elif page == 'Invoice Value':
         st.header('Invoice Value Page')
-        st.dataframe(dispatch_data)
+        
+        category_options = ['All', 'OEM', 'SPD']
+        selected_category = st.sidebar.radio('Select Customer Category', category_options)
+
+        filtered_for_customer_list = dispatch_data.copy()
+        if selected_category != 'All':
+            filtered_for_customer_list = filtered_for_customer_list[filtered_for_customer_list['Customer Category'] == selected_category]
+            
+        month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
+        month_list.insert(0, 'All')
+        selected_month = st.sidebar.selectbox('Select Month-Year', month_list)
+            
+        fy_list = sorted(dispatch_data['Financial Year'].dropna().unique().tolist())
+        fy_list.insert(0, 'All')
+        selected_fy = st.sidebar.selectbox('Select Financial Year', fy_list)
+            
+        updated_customer_list = sorted(filtered_for_customer_list['Updated Customer Name'].dropna().unique().tolist())
+        updated_customer_list.insert(0, 'All')
+        selected_updated_customer = st.sidebar.selectbox('Select Updated Customer Name', updated_customer_list)
+
+        filtered_for_original = filtered_for_customer_list.copy()
+        if selected_updated_customer != 'All':
+            filtered_for_original = filtered_for_original[filtered_for_original['Updated Customer Name'] == selected_updated_customer]
+                
+        customer_list = sorted(filtered_for_original['Customer Name'].dropna().unique().tolist())
+        customer_list.insert(0, 'All')
+        selected_customer = st.sidebar.selectbox('Select Customer Name', customer_list)
+        
+        plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
+        plant_list.insert(0, 'All')
+        selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
+
+        st.sidebar.markdown('---')
+        st.sidebar.subheader('Invoice No. Filter (Type to Search)')
+        
+        invoice_numbers = sorted(dispatch_data['Billing Doc No.'].dropna().unique().astype(str).tolist())
+        typed_invoice = st.sidebar.text_input('Type Invoice No.')
+        suggested_invoices = [inv for inv in invoice_numbers if typed_invoice in inv] if typed_invoice else []
+
+        selected_invoice = st.sidebar.selectbox(
+            'Select from Suggestions', 
+            ['All'] + suggested_invoices, 
+            index=0, 
+            key='invoice_value_invoice_filter'
+        )
+
+        clear_invoice_filter = st.sidebar.button("Clear Invoice Filter")
+
+        billing_dates = pd.to_datetime(dispatch_data['Billing Date'], dayfirst=True, errors='coerce')
+
+        if selected_month != 'All':
+            month_year_date = pd.to_datetime('01 ' + selected_month, format='%d %B-%y', errors='coerce')
+            min_date = month_year_date
+            max_date = month_year_date + pd.offsets.MonthEnd(0)
+        else:
+            min_date = billing_dates.min()
+            max_date = billing_dates.max()
+            
+        st.sidebar.markdown('---')
+        st.sidebar.subheader('Select Date Range (Billing Date)')
+        
+        date_range = st.sidebar.date_input(
+            "Billing Date Range:",
+            [min_date, max_date],
+            min_value=min_date,
+            max_value=max_date
+        )
+        
+        clear_date_filter = st.sidebar.button("Clear Date Filter")
+        
+        st.sidebar.markdown('---')
+        st.sidebar.subheader('Material Filter (Type to Search)')
+        material_numbers = sorted(dispatch_data['Material'].dropna().unique().astype(str).tolist())
+        typed_material = st.sidebar.text_input('Type Material')
+        suggested_materials = [p for p in material_numbers if typed_material in p] if typed_material else []
+
+        selected_material = st.sidebar.selectbox(
+            'Select from Suggestions', 
+            ['All'] + suggested_materials, 
+            index=0, 
+            key='invoice_value_material_filter'
+        )
+
+        clear_material_filter = st.sidebar.button("Clear Material Filter")
+        
+        filtered_data = dispatch_data.copy()
+        
+        if selected_category != 'All':
+            filtered_data = filtered_data[filtered_data['Customer Category'] == selected_category]
+            
+        if selected_month != 'All':
+            filtered_data = filtered_data[filtered_data['Month-Year'] == selected_month]
+            
+        if selected_fy != 'All':
+            filtered_data = filtered_data[filtered_data['Financial Year'] == selected_fy]
+            
+        if selected_updated_customer != 'All':
+            filtered_data = filtered_data[filtered_data['Updated Customer Name'] == selected_updated_customer]
+            
+        if selected_customer != 'All':
+            filtered_data = filtered_data[filtered_data['Customer Name'] == selected_customer]
+
+        if selected_invoice != 'All':
+            filtered_data = filtered_data[filtered_data['Billing Doc No.'].astype(str) == selected_invoice]
+            
+        if not clear_invoice_filter:
+            if typed_invoice:
+                filtered_data = filtered_data[filtered_data['Billing Doc No.'].astype(str).str.contains(typed_invoice, na=False)] 
+
+        if selected_plant != 'All':
+            filtered_data = filtered_data[filtered_data['Plant'].astype(str) == selected_plant]
+            
+        filtered_data['Billing Date'] = pd.to_datetime(filtered_data['Billing Date'], dayfirst=True, errors='coerce')
+        
+        if not clear_date_filter:
+            start_date, end_date = date_range
+            filtered_data = filtered_data[
+                (filtered_data['Billing Date'] >= pd.to_datetime(start_date)) &
+                (filtered_data['Billing Date'] <= pd.to_datetime(end_date))
+            ]
+            
+        if not clear_material_filter:
+            if typed_material:
+                filtered_data = filtered_data[filtered_data['Material'].astype(str).str.contains(typed_material, na=False)]
+            elif selected_material != 'All':
+                filtered_data = filtered_data[filtered_data['Material'].astype(str) == selected_material]
+                
+        filtered_data['Billing Date'] = filtered_data['Billing Date'].dt.strftime('%d-%m-%Y')
+        
+        # Deduplicate Logic:
+        filtered_data['Basic Amt.LocCur'] = pd.to_numeric(filtered_data['Basic Amt.LocCur'], errors='coerce').fillna(0)
+        filtered_data['Tax Amount'] = pd.to_numeric(filtered_data['Tax Amount'], errors='coerce').fillna(0)
+        filtered_data['Amt.Locl Currency'] = pd.to_numeric(filtered_data['Amt.Locl Currency'], errors='coerce').fillna(0)
+        
+        def invoice_filter(group):
+            if (group['Billing Doc No.'].nunique() > 1) or group['Sales Order No'].astype(str).str.startswith('10').any():
+                return group
+            return group[group['Item'] == 10]
+        
+        invoice_totals = (
+            filtered_data.groupby('Billing Doc No.')[['Basic Amt.LocCur', 'Tax Amount', 'Amt.Locl Currency']]
+            .sum()
+            .reset_index()
+        )
+        
+        filtered_data = filtered_data.merge(invoice_totals, on='Billing Doc No.', suffixes=('', '_Total'))
+        
+        mask_item_10 = filtered_data['Item'] == 10
+        filtered_data.loc[mask_item_10, 'Basic Amt.LocCur'] = filtered_data.loc[mask_item_10, 'Basic Amt.LocCur_Total']
+        filtered_data.loc[mask_item_10, 'Tax Amount'] = filtered_data.loc[mask_item_10, 'Tax Amount_Total']
+        filtered_data.loc[mask_item_10, 'Amt.Locl Currency'] = filtered_data.loc[mask_item_10, 'Amt.Locl Currency_Total']
+        
+        filtered_data = filtered_data.drop(columns=['Basic Amt.LocCur_Total', 'Tax Amount_Total', 'Amt.Locl Currency_Total'])
+
+        filtered_data = filtered_data.groupby('Billing Doc No.').apply(invoice_filter).reset_index(drop=True)
+        
+        subtotal_data = filtered_data.copy()
+        
+        basic_amt_sum = subtotal_data['Basic Amt.LocCur'].sum()
+        tax_amt_sum = subtotal_data['Tax Amount'].sum()
+        amt_loc_sum = subtotal_data['Amt.Locl Currency'].sum()
+        
+        st.dataframe(filtered_data)
+
 
     elif page == 'Dispatch Details':
         st.header('Dispatch Details Page')
