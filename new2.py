@@ -53,7 +53,7 @@ if uploaded_file is not None:
             return 'Power STG'
         elif material_str.startswith(('76139', '76729', '76739', '76749', '76919')):
             return 'Vane Pump'
-        elif material_str.startswith(('78209', '73409')):
+        elif material_str.startswith(('78209', '73409','73408')):
             return 'Mechanical Stg'
         elif material_str.startswith('78609'):
             return 'Bevel Gear'
@@ -134,12 +134,14 @@ if uploaded_file is not None:
     elif page == 'Invoice Value':
         st.header('Invoice Value Page')
         
-        category_options = ['All', 'OEM', 'SPD']
+        category_options = ['All', 'OEM', 'SPD', 'OEM + SPD']
         selected_category = st.sidebar.radio('Select Customer Category', category_options)
 
         filtered_for_customer_list = dispatch_data.copy()
-        if selected_category != 'All':
-            filtered_for_customer_list = filtered_for_customer_list[filtered_for_customer_list['Customer Category'] == selected_category]
+        if selected_category == 'OEM + SPD':
+            filtered_data = filtered_for_customer_list[filtered_for_customer_list['Customer Category'].isin(['OEM', 'SPD'])]
+        elif selected_category != 'All':
+            filtered_data = filtered_for_customer_list[filtered_for_customer_list['Customer Category'] == selected_category]
             
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
@@ -164,6 +166,11 @@ if uploaded_file is not None:
         plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
         plant_list.insert(0, 'All')
         selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
+
+        material_category_list = sorted(dispatch_data['Material Category'].dropna().unique().tolist())
+        material_category_list.insert(0, 'All')
+        selected_material_category = st.sidebar.selectbox('Select Material Category', material_category_list)
+
 
         st.sidebar.markdown('---')
         st.sidebar.subheader('Invoice No. Filter (Type to Search)')
@@ -244,7 +251,11 @@ if uploaded_file is not None:
 
         if selected_plant != 'All':
             filtered_data = filtered_data[filtered_data['Plant'].astype(str) == selected_plant]
-            
+
+        if selected_material_category != 'All':
+            filtered_data = filtered_data[filtered_data['Material Category'] == selected_material_category]
+
+
         filtered_data['Billing Date'] = pd.to_datetime(filtered_data['Billing Date'], dayfirst=True, errors='coerce')
         
         if not clear_date_filter:
@@ -301,12 +312,15 @@ if uploaded_file is not None:
     elif page == 'Dispatch Details':
         st.header('Dispatch Details Page')
 
-        category_options = ['All', 'OEM', 'SPD']
+        category_options = ['All', 'OEM', 'SPD', 'OEM + SPD']
         selected_category = st.sidebar.radio('Select Customer Category', category_options)
 
         filtered_for_customer_list = dispatch_data.copy()
-        if selected_category != 'All':
-            filtered_for_customer_list = filtered_for_customer_list[filtered_for_customer_list['Customer Category'] == selected_category]
+
+        if selected_category == 'OEM + SPD':
+            filtered_data = filtered_for_customer_list[filtered_for_customer_list['Customer Category'].isin(['OEM', 'SPD'])]
+        elif selected_category != 'All':
+            filtered_data = filtered_for_customer_list[filtered_for_customer_list['Customer Category'] == selected_category]
 
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
@@ -331,6 +345,10 @@ if uploaded_file is not None:
         plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
         plant_list.insert(0, 'All')
         selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
+
+        material_category_list = sorted(dispatch_data['Material Category'].dropna().unique().tolist())
+        material_category_list.insert(0, 'All')
+        selected_material_category = st.sidebar.selectbox('Select Material Category', material_category_list)
 
         billing_dates = pd.to_datetime(dispatch_data['Billing Date'], dayfirst=True, errors='coerce')
 
@@ -383,6 +401,9 @@ if uploaded_file is not None:
         if selected_plant != 'All':
             filtered_data = filtered_data[filtered_data['Plant'].astype(str) == selected_plant]
 
+        if selected_material_category != 'All':
+            filtered_data = filtered_data[filtered_data['Material Category'] == selected_material_category]
+
         filtered_data['Billing Date'] = pd.to_datetime(filtered_data['Billing Date'], dayfirst=True, errors='coerce')
 
         if not clear_date_filter:
@@ -403,6 +424,7 @@ if uploaded_file is not None:
 
         inv_qty_sum = filtered_data['Inv Qty'].sum()
         kit_qty_sum = filtered_data['Kit Qty'].sum()
+        basic_amt_sum = filtered_data['Basic Amt.LocCur'].sum()
 
         st.markdown(
             """
@@ -435,13 +457,16 @@ if uploaded_file is not None:
             f"""
             <div class="subtotal-box {box_class}">
             Subtotal (Filtered Data):<br>
-            Inv Qty: {inv_qty_sum:,.0f} &nbsp;&nbsp;&nbsp; Kit Qty: {kit_qty_sum:,.0f}
+            Inv Qty: {inv_qty_sum:,.0f} &nbsp;&nbsp;&nbsp;
+            Kit Qty: {kit_qty_sum:,.0f} &nbsp;&nbsp;&nbsp;
+            Basic Amt.LocCur: ₹ {basic_amt_sum:,.2f}
             </div>
             """,
             unsafe_allow_html=True
         )
 
         st.dataframe(filtered_data)
+
     elif page == 'Daywise Dispatch':
         st.header('Daywise Dispatch Page')
 
@@ -467,12 +492,15 @@ if uploaded_file is not None:
             kit_qty_index = filtered_daywise.columns.get_loc('Kit Qty')
             filtered_daywise.insert(kit_qty_index + 1, 'Total Dispatch', filtered_daywise['Inv Qty'] + filtered_daywise['Kit Qty'])
 
-        category_options = ['All', 'OEM', 'SPD']
+        category_options = ['All', 'OEM', 'SPD', 'OEM + SPD']
         selected_category = st.sidebar.radio('Select Customer Category', category_options)
 
         filtered_for_customer_list = filtered_daywise.copy()
-        if selected_category != 'All':
-            filtered_for_customer_list = filtered_for_customer_list[filtered_for_customer_list['Customer Category'] == selected_category]
+
+        if selected_category == 'OEM + SPD':
+            filtered_data = filtered_for_customer_list[filtered_for_customer_list['Customer Category'].isin(['OEM', 'SPD'])]
+        elif selected_category != 'All':
+            filtered_data = filtered_for_customer_list[filtered_for_customer_list['Customer Category'] == selected_category]
 
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
@@ -497,6 +525,10 @@ if uploaded_file is not None:
         plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
         plant_list.insert(0, 'All')
         selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
+
+        material_category_list = sorted(dispatch_data['Material Category'].dropna().unique().tolist())
+        material_category_list.insert(0, 'All')
+        selected_material_category = st.sidebar.selectbox('Select Material Category', material_category_list)
 
         st.sidebar.markdown('---')
         st.sidebar.subheader('Material Filter (Type to Search)')
@@ -547,6 +579,9 @@ if uploaded_file is not None:
 
         if selected_plant != 'All':
             final_daywise = final_daywise[final_daywise['Plant'].astype(str) == selected_plant]
+
+        if selected_material_category != 'All':
+            filtered_data = final_daywise[final_daywise['Material Category'] == selected_material_category]
 
         final_daywise['Billing Date'] = pd.to_datetime(final_daywise['Billing Date'], dayfirst=True, errors='coerce')
 
