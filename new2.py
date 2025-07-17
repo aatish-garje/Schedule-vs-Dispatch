@@ -11,10 +11,10 @@ page = st.sidebar.radio("Select Page", ['Overview', 'SPD', 'OEM', 'Daywise Dispa
 uploaded_file = st.file_uploader("Upload your Dispatch Data Excel file", type=['xlsx', 'csv'])
 
 if uploaded_file is not None:
-    if uploaded_file.name.endswith('.xlsx'):
+    if uploaded_file.name.lower().endswith('.xlsx'):
         dispatch_data = pd.read_excel(uploaded_file)
     else:
-        dispatch_data = pd.read_csv(uploaded_file)
+        dispatch_data = pd.read_csv(uploaded_file, encoding='latin1')
 
     dispatch_data.columns = dispatch_data.columns.str.strip()
 
@@ -165,6 +165,10 @@ if uploaded_file is not None:
         customer_list.insert(0, 'All')
         selected_customer = st.sidebar.selectbox('Select Customer Name', customer_list)
 
+        plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
+        plant_list.insert(0, 'All')
+        selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
+
         billing_dates = pd.to_datetime(dispatch_data['Billing Date'], dayfirst=True, errors='coerce')
 
         if selected_month != 'All':
@@ -213,6 +217,9 @@ if uploaded_file is not None:
         if selected_customer != 'All':
             filtered_data = filtered_data[filtered_data['Customer Name'] == selected_customer]
 
+        if selected_plant != 'All':
+            filtered_data = filtered_data[filtered_data['Plant'].astype(str) == selected_plant]
+
         filtered_data['Billing Date'] = pd.to_datetime(filtered_data['Billing Date'], dayfirst=True, errors='coerce')
 
         if not clear_date_filter:
@@ -224,7 +231,7 @@ if uploaded_file is not None:
 
         if not clear_material_filter:
             if typed_material:
-                filtered_data = filtered_data[filtered_data['Material'].astype(str) == typed_material]
+                filtered_data = filtered_data[filtered_data['Material'].astype(str).str.contains(typed_material, na=False)]
             elif selected_material != 'All':
                 filtered_data = filtered_data[filtered_data['Material'].astype(str) == selected_material]
 
@@ -324,6 +331,10 @@ if uploaded_file is not None:
         customer_list.insert(0, 'All')
         selected_customer = st.sidebar.selectbox('Select Customer Name', customer_list)
 
+        plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
+        plant_list.insert(0, 'All')
+        selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
+
         st.sidebar.markdown('---')
         st.sidebar.subheader('Material Filter (Type to Search)')
         material_numbers = sorted(dispatch_data['Material'].dropna().unique().astype(str).tolist())
@@ -371,6 +382,9 @@ if uploaded_file is not None:
         if selected_customer != 'All':
             final_daywise = final_daywise[final_daywise['Customer Name'] == selected_customer]
 
+        if selected_plant != 'All':
+            final_daywise = final_daywise[final_daywise['Plant'].astype(str) == selected_plant]
+
         final_daywise['Billing Date'] = pd.to_datetime(final_daywise['Billing Date'], dayfirst=True, errors='coerce')
 
         if not clear_date_filter:
@@ -382,7 +396,7 @@ if uploaded_file is not None:
 
         if not clear_material_filter:
             if typed_material:
-                final_daywise = final_daywise[final_daywise['Material'].astype(str) == typed_material]
+                final_daywise = final_daywise[final_daywise['Material'].astype(str).str.contains(typed_material, na=False)]
             elif selected_material != 'All':
                 final_daywise = final_daywise[final_daywise['Material'].astype(str) == selected_material]
 
