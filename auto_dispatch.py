@@ -7,7 +7,7 @@ from openpyxl.styles import Border, Side
 import openpyxl
 
 st.set_page_config(layout="wide")
-st.title("Schedule vs Dispatch Report (Google Drive Linked Files)")
+st.title("Schedule vs Dispatch Report")
 
 # --- Google Drive Shared File URLs ---
 sales_register_url = "https://drive.google.com/uc?id=1M6HSzjH8a6ON-dtWnCUGyP7pF3DIRxdK"
