@@ -273,11 +273,21 @@ if uploaded_file is not None:
                 
         filtered_data['Billing Date'] = filtered_data['Billing Date'].dt.strftime('%d-%m-%Y')
         
+        filtered_data['Qty'] = filtered_data['Inv Qty'] + filtered_data['Kit Qty']
+        
+        filtered_data['Basic Value Per Item'] = np.where(
+            filtered_data['Qty'] > 0,
+            filtered_data['Basic Amt.LocCur'] / filtered_data['Qty'],
+            0
+        )
+
         # Deduplicate Logic:
         filtered_data['Basic Amt.LocCur'] = pd.to_numeric(filtered_data['Basic Amt.LocCur'], errors='coerce').fillna(0)
         filtered_data['Tax Amount'] = pd.to_numeric(filtered_data['Tax Amount'], errors='coerce').fillna(0)
         filtered_data['Amt.Locl Currency'] = pd.to_numeric(filtered_data['Amt.Locl Currency'], errors='coerce').fillna(0)
-        
+        filtered_data['Inv Qty'] = pd.to_numeric(filtered_data['Inv Qty'], errors='coerce').fillna(0)
+        filtered_data['Kit Qty'] = pd.to_numeric(filtered_data['Kit Qty'], errors='coerce').fillna(0)
+
         def invoice_filter(group):
             if (group['Billing Doc No.'].nunique() > 1) or group['Sales Order No'].astype(str).str.startswith('10').any():
                 return group
@@ -299,6 +309,24 @@ if uploaded_file is not None:
         filtered_data = filtered_data.drop(columns=['Basic Amt.LocCur_Total', 'Tax Amount_Total', 'Amt.Locl Currency_Total'])
 
         filtered_data = filtered_data.groupby('Billing Doc No.').apply(invoice_filter).reset_index(drop=True)
+
+        filtered_data['Qty'] = filtered_data['Inv Qty'] + filtered_data['Kit Qty']
+        filtered_data['Basic Value Per Item'] = np.where(
+            filtered_data['Qty'] > 0,
+            filtered_data['Basic Amt.LocCur'] / filtered_data['Qty'],
+            0
+        )
+        
+        filtered_data = filtered_data.drop(columns=['Inv Qty', 'Kit Qty'], errors='ignore')
+        
+        cols = filtered_data.columns.tolist()
+        if 'Material' in cols and 'Qty' in cols and 'Basic Value Per Item' in cols:
+            material_idx = cols.index('Material')
+            cols.remove('Qty')
+            cols.remove('Basic Value Per Item')
+            cols.insert(material_idx + 1, 'Qty')
+            cols.insert(material_idx + 2, 'Basic Value Per Item')
+            filtered_data = filtered_data[cols]
         
         subtotal_data = filtered_data.copy()
         
