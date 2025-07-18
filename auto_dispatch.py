@@ -10,8 +10,8 @@ st.set_page_config(layout="wide")
 st.title("Schedule vs Dispatch Report (Google Drive Linked Files)")
 
 # --- Google Drive Shared File URLs ---
-sales_register_url = "https://docs.google.com/spreadsheets/d/1icKJo9mUtGJuTCeITYVJDrBIzlsbsuoO/edit?usp=drive_link&ouid=102581333420981241769&rtpof=true&sd=true"
-schedule_url = "https://docs.google.com/spreadsheets/d/1oSNBTi7UZMV1fzavPQlrKpUOL2IIPqgM/edit?usp=drive_link&ouid=102581333420981241769&rtpof=true&sd=true"
+sales_register_url = "https://drive.google.com/uc?id=1M6HSzjH8a6ON-dtWnCUGyP7pF3DIRxdK"
+schedule_url = "https://drive.google.com/uc?id=1QBrrXY517DxhIXCgWhHtJnSQ5UDzKUdP"
 
 # --- Read Files from Google Drive ---
 response_dispatch = requests.get(sales_register_url)
