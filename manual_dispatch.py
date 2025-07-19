@@ -6,7 +6,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import Border, Side
 
 st.set_page_config(layout="wide")
-st.title("Schedule vs Dispatch Report (Manual Upload, Auto Kit File)")
+st.title("Schedule vs Dispatch Report")
 
 # --- Manual Uploads ---
 sales_register_file = st.file_uploader("Upload Sales Register (xlsx)", type="xlsx")
