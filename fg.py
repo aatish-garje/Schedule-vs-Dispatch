@@ -6,7 +6,7 @@ from openpyxl.styles import Font, Border, Side, Alignment
 from openpyxl import Workbook
 
 # Material group codes as per your specification
-power_codes = ['80339', '80379' '80349', '80439', '80469', '80489', '80499', '88439', 'M0339', 'M0439']
+power_codes = ['80339', '80379', '80349', '80439', '80469', '80489', '80499', '88439', 'M0339', 'M0439']
 vane_pump_codes = ['76139', '76729', '76739', '76749', '76769', '76919']
 mechanical_codes = ['73409', '78209']
 bevel_gear_codes = ['78609']
@@ -122,12 +122,6 @@ if uploaded_file:
             df2000[
                 df2000['Material'].apply(lambda x: matches_any(x, vane_pump_codes))
                 & df2000['Material'].apply(not_761395513799_and_513899)
-            ][col7]
-        ),
-        "Drop Arm": add_subtotal(
-            df2000[
-                df2000['Material'].apply(lambda x: matches_any(x, drop_arm_codes))
-                & df2000['Material'].apply(drop_arm_no_slash)
             ][col7]
         ),
     }
