@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
+import plotly.express as px
 
 st.set_page_config(layout="wide")
 st.title('Dispatch Data Dashboard 📊')
@@ -70,14 +71,23 @@ if uploaded_file is not None:
         dispatch_data['Material'].apply(categorize_material)
     )
 
-    dispatch_data['Billing Date'] = pd.to_datetime(dispatch_data['Billing Date'], errors='coerce').dt.strftime('%d-%m-%Y')
-    dispatch_data['Cust PO Date'] = pd.to_datetime(dispatch_data['Cust PO Date'], errors='coerce').dt.strftime('%d-%m-%Y')
-    month_year = pd.to_datetime(dispatch_data['Billing Date'], dayfirst=True, errors='coerce').dt.strftime('%B-%y')
+    dispatch_data['Billing Date'] = pd.to_datetime(dispatch_data['Billing Date'], dayfirst=True, errors='coerce')
+    dispatch_data['Cust PO Date'] = pd.to_datetime(dispatch_data['Cust PO Date'], dayfirst=True, errors='coerce')
+
     dispatch_data.insert(
         dispatch_data.columns.get_loc('Billing Date') + 1,
         'Month-Year',
-        month_year
+        dispatch_data['Billing Date'].dt.strftime('%B-%y')
     )
+
+    dispatch_data['Month Start Date'] = pd.to_datetime(
+        '01 ' + dispatch_data['Month-Year'], 
+        format='%d %B-%y', 
+        errors='coerce'
+    )
+
+    dispatch_data['Billing Date'] = dispatch_data['Billing Date'].dt.strftime('%d-%m-%Y')
+    dispatch_data['Cust PO Date'] = dispatch_data['Cust PO Date'].dt.strftime('%d-%m-%Y')
 
     dispatch_data.insert(
         dispatch_data.columns.get_loc('Material'),
@@ -119,7 +129,117 @@ if uploaded_file is not None:
     dispatch_data['Financial Year'] = dispatch_data['Billing Date'].apply(assign_financial_year)
     if page == 'Overview':
         st.header('Overview Page')
-        st.dataframe(dispatch_data)
+        month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
+        month_list.insert(0, 'All')
+        selected_month = st.sidebar.selectbox('Select Month-Year (Overview)', month_list)
+        
+        overview_data = dispatch_data.copy()
+        if selected_month != 'All':
+            overview_data = overview_data[overview_data['Month-Year'] == selected_month]
+
+        overview_data = overview_data.sort_values('Month Start Date')
+            
+        monthly_sales = overview_data.groupby(['Month-Year', 'Month Start Date'])['Basic Amt.LocCur'].sum().reset_index()
+        monthly_sales = monthly_sales.sort_values('Month Start Date')
+        y_max1 = monthly_sales['Basic Amt.LocCur'].max() * 1.15
+
+        fig_total_sales = px.bar(
+            monthly_sales,
+            x='Month-Year',
+            y='Basic Amt.LocCur',
+            title='Total Monthly Sales (Basic Amt.LocCur)',
+            labels={'Basic Amt.LocCur': 'Basic Amount (₹)', 'Month-Year': 'Month-Year'},
+            text='Basic Amt.LocCur'
+        )
+        
+        fig_total_sales.update_layout(
+            yaxis_tickprefix='₹ ',
+            xaxis_title='Month-Year',
+            uniformtext_minsize=8,
+            uniformtext_mode='hide',
+            bargap=0.3,
+            yaxis=dict(range=[0, y_max1])
+        )
+            
+        fig_total_sales.update_traces(
+            texttemplate='₹ %{text:,.0f}',
+            textposition='outside',
+            marker_line_width=0.5,
+            width=0.3
+        )
+        fig_total_sales.update_traces(texttemplate='₹ %{text:,.0f}', textposition='outside')
+        
+        split_sales = overview_data[overview_data['Customer Category'].isin(['OEM', 'SPD'])].groupby(
+            ['Month-Year', 'Month Start Date', 'Customer Category']
+        )['Basic Amt.LocCur'].sum().reset_index()
+
+        split_sales = split_sales.sort_values('Month Start Date')
+        y_max2 = split_sales['Basic Amt.LocCur'].max() * 1.15
+
+        fig_oem_spd = px.bar(
+            split_sales,
+            x='Month-Year',
+            y='Basic Amt.LocCur',
+            color='Customer Category',
+            barmode='group',
+            title='OEM & SPD Sales (Basic Amt.LocCur) Month-wise',
+            labels={'Basic Amt.LocCur': 'Basic Amount (₹)', 'Month-Year': 'Month-Year'},
+            text='Basic Amt.LocCur'
+        )
+        
+        fig_oem_spd.update_layout(
+            yaxis_tickprefix='₹ ',
+            xaxis_title='Month-Year',
+            uniformtext_minsize=8,
+            uniformtext_mode='hide',
+            bargap=0.3,
+            yaxis=dict(range=[0, y_max2])
+        )
+        
+        fig_oem_spd.update_traces(
+            texttemplate='₹ %{text:,.0f}',
+            textposition='outside',
+            marker_line_width=0.5,
+            width=0.2
+        )
+
+        fig_oem_spd.update_traces(texttemplate='₹ %{text:,.0f}', textposition='outside')
+        
+        plant_sales = overview_data.groupby('Plant')['Basic Amt.LocCur'].sum().reset_index()
+        plant_sales['Plant'] = plant_sales['Plant'].astype(str)
+
+        y_max3 = plant_sales['Basic Amt.LocCur'].max() * 1.15
+        
+        fig_plant_sales = px.bar(
+            plant_sales,
+            x='Plant',
+            y='Basic Amt.LocCur',
+            title='Plant-wise Sales (Basic Amt.LocCur)',
+            labels={'Basic Amt.LocCur': 'Basic Amount (₹)', 'Plant': 'Plant'},
+            text='Basic Amt.LocCur'
+        )
+        
+        fig_plant_sales.update_layout(
+            xaxis=dict(type='category'),
+            yaxis_tickprefix='₹ ',
+            xaxis_title='Plant',
+            uniformtext_minsize=8,
+            uniformtext_mode='hide',
+            bargap=0.3,
+            yaxis=dict(range=[0, y_max3])
+        )
+        
+        fig_plant_sales.update_traces(
+            texttemplate='₹ %{text:,.0f}',
+            textposition='outside',
+            marker_line_width=0.5,
+            width=0.3
+        )
+        fig_plant_sales.update_traces(texttemplate='₹ %{text:,.0f}', textposition='outside')
+        
+        st.plotly_chart(fig_total_sales, use_container_width=True)
+        st.plotly_chart(fig_oem_spd, use_container_width=True)
+        st.plotly_chart(fig_plant_sales, use_container_width=True)
 
     elif page == 'SPD':
         st.header('SPD Page')
@@ -334,6 +454,9 @@ if uploaded_file is not None:
         tax_amt_sum = subtotal_data['Tax Amount'].sum()
         amt_loc_sum = subtotal_data['Amt.Locl Currency'].sum()
         
+        if 'Month Start Date' in filtered_data.columns:
+            filtered_data = filtered_data.drop(columns=['Month Start Date'])
+            
         st.dataframe(filtered_data)
 
 
@@ -441,6 +564,8 @@ if uploaded_file is not None:
                 (filtered_data['Billing Date'] <= pd.to_datetime(end_date))
             ]
 
+        filtered_data['Billing Date'] = filtered_data['Billing Date'].dt.strftime('%d-%m-%Y')
+
         if not clear_material_filter:
             if typed_material:
                 filtered_data = filtered_data[filtered_data['Material'].astype(str).str.contains(typed_material, na=False)]
@@ -492,6 +617,9 @@ if uploaded_file is not None:
             """,
             unsafe_allow_html=True
         )
+
+        if 'Month Start Date' in filtered_data.columns:
+            filtered_data = filtered_data.drop(columns=['Month Start Date'])
 
         st.dataframe(filtered_data)
 
@@ -627,7 +755,6 @@ if uploaded_file is not None:
                 final_daywise = final_daywise[final_daywise['Material'].astype(str) == selected_material]
 
         final_daywise['Billing Date'] = pd.to_datetime(final_daywise['Billing Date'], dayfirst=True, errors='coerce')
-        final_daywise['Billing Date'] = final_daywise['Billing Date'].dt.strftime('%d-%m-%Y')
 
         pivot_table = final_daywise.pivot_table(
             index=['Sold-to Party', 'Customer Name', 'Material', 'Plant'],
@@ -636,6 +763,11 @@ if uploaded_file is not None:
             aggfunc='sum',
             fill_value=0
         ).reset_index()
+
+        pivot_table.columns = [
+            col.strftime('%d-%m-%Y') if isinstance(col, pd.Timestamp) else col
+            for col in pivot_table.columns
+        ]
 
         pivot_table.columns.name = None
         st.dataframe(pivot_table)
