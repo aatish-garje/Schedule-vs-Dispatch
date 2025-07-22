@@ -17,8 +17,8 @@ def matches_any(x, codes):
     return any(str(x).startswith(code) for code in codes)
 
 # Function to remove only 7613955137/99
-def not_761395513799(x):
-    return str(x) != "7613955137/99"
+def not_761395513799_and_513899(x):
+    return str(x) not in ["7613955137/99", "7613955138/99"]
 
 def add_subtotal(df):
     df = df.copy()
@@ -91,14 +91,14 @@ if uploaded_file:
         "Vane Pump": add_subtotal(
             df[
                 df['Material'].apply(lambda x: matches_any(x, vane_pump_codes))
-                & df['Material'].apply(not_761395513799)
+                & df['Material'].apply(not_761395513799_and_513899)
             ][col7]
         ),
         "Mechanical": add_subtotal(df[df['Material'].apply(lambda x: matches_any(x, mechanical_codes))][col7]),
         "Bevel Gear": add_subtotal(df[df['Material'].apply(lambda x: matches_any(x, bevel_gear_codes))][col7]),
         "Drop Arm": add_subtotal(df[df['Material'].apply(lambda x: matches_any(x, drop_arm_codes))][col7]),
         "Oil Tank": add_subtotal(df[df['Material'].apply(lambda x: matches_any(x, oil_tank_codes))][col7]),
-        "All FG": add_subtotal(df[df['Material'].apply(not_761395513799)][col7])
+        "All FG": add_subtotal(df[df['Material'].apply(not_761395513799_and_513899)][col7])
     }
     out1 = to_excel(sheets1)
     st.download_button(
@@ -114,7 +114,7 @@ if uploaded_file:
         "Vane Pump": add_subtotal(
             df2000[
                 df2000['Material'].apply(lambda x: matches_any(x, vane_pump_codes))
-                & df2000['Material'].apply(not_761395513799)
+                & df2000['Material'].apply(not_761395513799_and_513899)
             ][col7]
         ),
     }
