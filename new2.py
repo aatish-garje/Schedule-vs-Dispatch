@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 st.set_page_config(layout="wide")
 st.title('Dispatch Data Dashboard 📊')
@@ -101,6 +103,13 @@ if uploaded_file is not None:
         (dispatch_data['Model New'].str.lower() == 'm0339'),
         'Model New'
     ] = 'M0339 H-Pas'
+
+    dispatch_data.loc[dispatch_data['Model New'] == 'M0339 H-Pas', 'Material Category'] = 'Power STG H-Pas'
+
+    dispatch_data.loc[
+        dispatch_data['Material'].astype(str).str.endswith('/RF', na=False),
+        ['Model New', 'Material Category']
+    ] = ['M0339 H-Pas', 'Power STG H-Pas']
 
     dispatch_data['Customer Group'] = dispatch_data['Customer Group'].astype(str).str.strip().str.replace('.0', '', regex=False)
     dispatch_data.insert(
@@ -236,10 +245,60 @@ if uploaded_file is not None:
             width=0.3
         )
         fig_plant_sales.update_traces(texttemplate='₹ %{text:,.0f}', textposition='outside')
+
+        st.header("Material Category vs Customer Category (OEM & SPD) – Qty Wise")
+        categories_to_include = ['OEM', 'SPD']
+        material_categories_to_include = ['Power STG', 'Mechanical Stg', 'Power STG H-Pas']
         
+        overview_data = dispatch_data.copy()
+        
+        overview_data['Inv Qty'] = pd.to_numeric(overview_data['Inv Qty'], errors='coerce').fillna(0)
+        overview_data['Kit Qty'] = pd.to_numeric(overview_data['Kit Qty'], errors='coerce').fillna(0)
+        
+        if selected_month != 'All':
+            overview_data = overview_data[overview_data['Month-Year'] == selected_month]
+            
+        overview_data = overview_data[
+            (overview_data['Customer Category'].isin(['OEM', 'SPD'])) &
+            (overview_data['Material Category'].isin(['Power STG', 'Mechanical Stg', 'Power STG H-Pas']))
+        ]
+        
+        overview_data['Effective Qty'] = overview_data.apply(
+            lambda row: row['Inv Qty']
+            if (row['Customer Category'] == 'OEM' or row['Inv Qty'] > 0)
+            else row['Kit Qty'],
+            axis=1
+        )
+        
+        grouped = overview_data.groupby(['Material Category', 'Customer Category'])['Effective Qty'].sum().reset_index()
+        
+        fig = px.bar(
+            grouped,
+            x='Material Category',
+            y='Effective Qty',
+            color='Customer Category',
+            barmode='group',
+            text='Effective Qty',
+            title='Qty by Material & Customer Category'
+        )
+
+        y_max = grouped['Effective Qty'].max() * 1.2
+
+        fig.update_layout(
+            xaxis_title='Material Category',
+            yaxis_title='Quantity',
+            uniformtext_minsize=8,
+            uniformtext_mode='hide',
+            bargap=0.3,
+            yaxis=dict(range=[0, y_max])
+        )
+
+        fig.update_traces(texttemplate='%{text:.0f}', textposition='outside', cliponaxis=False)
+
         st.plotly_chart(fig_total_sales, use_container_width=True)
         st.plotly_chart(fig_oem_spd, use_container_width=True)
         st.plotly_chart(fig_plant_sales, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
     elif page == 'SPD':
         st.header('SPD Page')
@@ -247,9 +306,112 @@ if uploaded_file is not None:
         st.dataframe(spd_data)
 
     elif page == 'OEM':
-        st.header('OEM Page')
-        oem_data = dispatch_data[dispatch_data['Customer Category'] == 'OEM']
-        st.dataframe(oem_data)
+        st.header('OEM Dashboard')
+        
+        oem_df = dispatch_data[dispatch_data['Customer Category'] == 'OEM']
+        oem_months = sorted(oem_df['Month-Year'].dropna().unique())
+        oem_months_with_all = ['All'] + list(oem_months)
+
+        selected_month = st.sidebar.selectbox('Select Month (OEM):', oem_months_with_all)
+
+        if selected_month == 'All':
+            oem_month_df = oem_df
+        else:
+            oem_month_df = oem_df[oem_df['Month-Year'] == selected_month]
+        
+        updated_customers = sorted(oem_df['Updated Customer Name'].dropna().unique())
+        updated_customers.insert(0, 'All')
+        selected_updated_customer = st.sidebar.selectbox("Select Updated Customer Name (OEM):", updated_customers)
+        
+        filtered_for_customer = oem_df.copy()
+        if selected_updated_customer != 'All':
+            filtered_for_customer = filtered_for_customer[filtered_for_customer['Updated Customer Name'] == selected_updated_customer]
+            
+        dependent_customers = sorted(filtered_for_customer['Customer Name'].dropna().unique())
+        dependent_customers.insert(0, 'All')
+        selected_customer_name = st.sidebar.selectbox("Select Customer Name (OEM):", dependent_customers)
+        
+        oem_month_df = filtered_for_customer.copy()
+        if selected_customer_name != 'All':
+            oem_month_df = oem_month_df[oem_month_df['Customer Name'] == selected_customer_name]
+
+        st.subheader('OEM - Power STG - Customer-wise Quantity')
+        oem_power_stg = oem_month_df[oem_month_df['Material Category'] == 'Power STG']
+        oem_power_cust_qty = oem_power_stg.groupby('Updated Customer Name')['Inv Qty'].sum().sort_values(ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oem_power_cust_qty.index, x=oem_power_cust_qty.values, palette='Blues_r', ax=ax)
+        for i, (name, value) in enumerate(zip(oem_power_cust_qty.index, oem_power_cust_qty.values)):
+            ax.text(value, i, f'{value:,.0f}', va='center')
+        st.pyplot(fig)
+        
+        st.subheader('OEM - Mechanical Stg - Customer-wise Quantity')
+        oem_mech_stg = oem_month_df[oem_month_df['Material Category'] == 'Mechanical Stg']
+        oem_mech_cust_qty = oem_mech_stg.groupby('Updated Customer Name')['Inv Qty'].sum().sort_values(ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oem_mech_cust_qty.index, x=oem_mech_cust_qty.values, palette='Greens_r', ax=ax)
+        for i, (name, value) in enumerate(zip(oem_mech_cust_qty.index, oem_mech_cust_qty.values)):
+            ax.text(value, i, f'{value:,.0f}', va='center')
+        st.pyplot(fig)
+        
+        st.subheader('OEM - Customer-wise Total Value (₹)')
+        oem_cust_value = oem_month_df.groupby('Updated Customer Name')['Basic Amt.LocCur'].sum().sort_values(ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oem_cust_value.index, x=oem_cust_value.values, palette='Oranges_r', ax=ax)
+        for i, (name, value) in enumerate(zip(oem_cust_value.index, oem_cust_value.values)):
+            ax.text(value, i, f'{value:,.0f}', va='center')
+        st.pyplot(fig)
+        
+        st.subheader('OEM - Model-wise Quantity - Power STG')
+        oem_power_model_qty = oem_power_stg.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oem_power_model_qty.index, x=oem_power_model_qty.values, palette='Blues', ax=ax)
+        for i, (name, value) in enumerate(zip(oem_power_model_qty.index, oem_power_model_qty.values)):
+            ax.text(value, i, f'{value:,.0f}', va='center')
+        st.pyplot(fig)
+        
+        st.subheader('OEM - Model-wise Quantity - Vane Pump')
+        oem_vane_pump = oem_month_df[oem_month_df['Material Category'] == 'Vane Pump']
+        oem_vane_model_qty = oem_vane_pump.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oem_vane_model_qty.index, x=oem_vane_model_qty.values, palette='Purples', ax=ax)
+        for i, (name, value) in enumerate(zip(oem_vane_model_qty.index, oem_vane_model_qty.values)):
+            ax.text(value, i, f'{value:,.0f}', va='center')
+        st.pyplot(fig)
+        
+        st.subheader('OEM - Model-wise Quantity - Mechanical Stg')
+        oem_mech_model_qty = oem_mech_stg.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oem_mech_model_qty.index, x=oem_mech_model_qty.values, palette='Greens', ax=ax)
+        for i, (name, value) in enumerate(zip(oem_mech_model_qty.index, oem_mech_model_qty.values)):
+            ax.text(value, i, f'{value:,.0f}', va='center')
+        st.pyplot(fig)
+        
+        st.subheader('OEM - Customer-wise (Partial Input) - Model-wise Quantity - Power STG')
+        oem_customer_input = st.text_input('Type OEM Customer (Partial allowed):').lower()
+        
+        oem_matching_customers = oem_power_stg['Updated Customer Name'].dropna().unique()
+        oem_match = [c for c in oem_matching_customers if oem_customer_input in c.lower()]
+        
+        if oem_match:
+            oem_selected = oem_match[0]
+            st.write(f'Auto-selected: **{oem_selected}**')
+            oem_cust_power = oem_power_stg[oem_power_stg['Updated Customer Name'] == oem_selected]
+            oem_cust_model_qty = oem_cust_power.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
+            fig, ax = plt.subplots(figsize=(10, 5))
+            sns.barplot(y=oem_cust_model_qty.index, x=oem_cust_model_qty.values, palette='Blues', ax=ax)
+            
+            for i, (name, value) in enumerate(zip(oem_cust_model_qty.index, oem_cust_model_qty.values)):
+                ax.text(value, i, f'{value:,.0f}', va='center')
+            st.pyplot(fig)
+            
+        elif oem_customer_input:
+            st.warning('No matching OEM customer found.')
 
     elif page == 'Invoice Value':
         st.header('Invoice Value Page')
@@ -274,6 +436,10 @@ if uploaded_file is not None:
         updated_customer_list = sorted(filtered_for_customer_list['Updated Customer Name'].dropna().unique().tolist())
         updated_customer_list.insert(0, 'All')
         selected_updated_customer = st.sidebar.selectbox('Select Updated Customer Name', updated_customer_list)
+
+        model_list = sorted(dispatch_data['Model New'].dropna().unique().tolist())
+        model_list.insert(0, 'All')
+        selected_model = st.sidebar.selectbox('Select Model New', model_list)
 
         filtered_for_original = filtered_for_customer_list.copy()
         if selected_updated_customer != 'All':
@@ -334,7 +500,8 @@ if uploaded_file is not None:
         st.sidebar.subheader('Material Filter (Type to Search)')
         material_numbers = sorted(dispatch_data['Material'].dropna().unique().astype(str).tolist())
         typed_material = st.sidebar.text_input('Type Material')
-        suggested_materials = [p for p in material_numbers if typed_material in p] if typed_material else []
+
+        suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
 
         selected_material = st.sidebar.selectbox(
             'Select from Suggestions', 
@@ -374,6 +541,9 @@ if uploaded_file is not None:
 
         if selected_material_category != 'All':
             filtered_data = filtered_data[filtered_data['Material Category'] == selected_material_category]
+        
+        if selected_model != 'All':
+            filtered_data = filtered_data[filtered_data['Model New'] == selected_model]
 
 
         filtered_data['Billing Date'] = pd.to_datetime(filtered_data['Billing Date'], dayfirst=True, errors='coerce')
@@ -387,7 +557,7 @@ if uploaded_file is not None:
             
         if not clear_material_filter:
             if typed_material:
-                filtered_data = filtered_data[filtered_data['Material'].astype(str).str.contains(typed_material, na=False)]
+                filtered_data = filtered_data[filtered_data['Material'].astype(str).str.lower().str.contains(typed_material.lower(), na=False)]
             elif selected_material != 'All':
                 filtered_data = filtered_data[filtered_data['Material'].astype(str) == selected_material]
                 
@@ -485,6 +655,10 @@ if uploaded_file is not None:
         updated_customer_list.insert(0, 'All')
         selected_updated_customer = st.sidebar.selectbox('Select Updated Customer Name', updated_customer_list)
 
+        model_list = sorted(dispatch_data['Model New'].dropna().unique().tolist())
+        model_list.insert(0, 'All')
+        selected_model = st.sidebar.selectbox('Select Model New', model_list)
+
         filtered_for_original = filtered_for_customer_list.copy()
         if selected_updated_customer != 'All':
             filtered_for_original = filtered_for_original[filtered_for_original['Updated Customer Name'] == selected_updated_customer]
@@ -528,7 +702,8 @@ if uploaded_file is not None:
 
         material_numbers = sorted(dispatch_data['Material'].dropna().unique().astype(str).tolist())
         typed_material = st.sidebar.text_input('Type Material')
-        suggested_materials = [p for p in material_numbers if typed_material in p] if typed_material else []
+        suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
+
         selected_material = st.sidebar.selectbox('Select from Suggestions', ['All'] + suggested_materials, index=0)
         clear_material_filter = st.sidebar.button("Clear Material Filter")
 
@@ -554,6 +729,9 @@ if uploaded_file is not None:
 
         if selected_material_category != 'All':
             filtered_data = filtered_data[filtered_data['Material Category'] == selected_material_category]
+        
+        if selected_model != 'All':
+            filtered_data = filtered_data[filtered_data['Model New'] == selected_model]
 
         filtered_data['Billing Date'] = pd.to_datetime(filtered_data['Billing Date'], dayfirst=True, errors='coerce')
 
@@ -568,7 +746,7 @@ if uploaded_file is not None:
 
         if not clear_material_filter:
             if typed_material:
-                filtered_data = filtered_data[filtered_data['Material'].astype(str).str.contains(typed_material, na=False)]
+                filtered_data = filtered_data[filtered_data['Material'].astype(str).str.lower().str.contains(typed_material.lower(), na=False)]
             elif selected_material != 'All':
                 filtered_data = filtered_data[filtered_data['Material'].astype(str) == selected_material]
 
@@ -686,11 +864,16 @@ if uploaded_file is not None:
         material_category_list.insert(0, 'All')
         selected_material_category = st.sidebar.selectbox('Select Material Category', material_category_list)
 
+        model_list = sorted(dispatch_data['Model New'].dropna().unique().tolist())
+        model_list.insert(0, 'All')
+        selected_model = st.sidebar.selectbox('Select Model New', model_list)
+
         st.sidebar.markdown('---')
         st.sidebar.subheader('Material Filter (Type to Search)')
         material_numbers = sorted(dispatch_data['Material'].dropna().unique().astype(str).tolist())
         typed_material = st.sidebar.text_input('Type Material')
-        suggested_materials = [p for p in material_numbers if typed_material in p] if typed_material else []
+        suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
+
         selected_material = st.sidebar.selectbox('Select from Suggestions', ['All'] + suggested_materials, index=0)
         clear_material_filter = st.sidebar.button("Clear Material Filter")
 
@@ -737,7 +920,10 @@ if uploaded_file is not None:
             final_daywise = final_daywise[final_daywise['Plant'].astype(str) == selected_plant]
 
         if selected_material_category != 'All':
-            filtered_data = final_daywise[final_daywise['Material Category'] == selected_material_category]
+            final_daywise = final_daywise[final_daywise['Material Category'] == selected_material_category]
+
+        if selected_model != 'All':
+            final_daywise = final_daywise[final_daywise['Model New'] == selected_model]
 
         final_daywise['Billing Date'] = pd.to_datetime(final_daywise['Billing Date'], dayfirst=True, errors='coerce')
 
@@ -750,7 +936,7 @@ if uploaded_file is not None:
 
         if not clear_material_filter:
             if typed_material:
-                final_daywise = final_daywise[final_daywise['Material'].astype(str).str.contains(typed_material, na=False)]
+                final_daywise = final_daywise[final_daywise['Material'].astype(str).str.lower().str.contains(typed_material.lower(), na=False)]
             elif selected_material != 'All':
                 final_daywise = final_daywise[final_daywise['Material'].astype(str) == selected_material]
 
