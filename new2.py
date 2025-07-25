@@ -309,6 +309,7 @@ if uploaded_file is not None:
         st.header('OEM Dashboard')
         
         oem_df = dispatch_data[dispatch_data['Customer Category'] == 'OEM']
+        oem_df['Material Category'] = oem_df['Material Category'].replace('Power STG H-Pas', 'Power STG')
         oem_months = sorted(oem_df['Month-Year'].dropna().unique())
         oem_months_with_all = ['All'] + list(oem_months)
 
