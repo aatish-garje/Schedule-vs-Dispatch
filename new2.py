@@ -314,31 +314,28 @@ if uploaded_file is not None:
 
         selected_month = st.sidebar.selectbox('Select Month (OEM):', oem_months_with_all)
 
-        if selected_month == 'All':
-            oem_month_df = oem_df
-        else:
-            oem_month_df = oem_df[oem_df['Month-Year'] == selected_month]
+        filtered_df = oem_df.copy()
         
-        updated_customers = sorted(oem_df['Updated Customer Name'].dropna().unique())
+        if selected_month != 'All':
+            filtered_df = filtered_df[filtered_df['Month-Year'] == selected_month]
+            
+        updated_customers = sorted(filtered_df['Updated Customer Name'].dropna().unique())
         updated_customers.insert(0, 'All')
         selected_updated_customer = st.sidebar.selectbox("Select Updated Customer Name (OEM):", updated_customers)
         
-        filtered_for_customer = oem_df.copy()
         if selected_updated_customer != 'All':
-            filtered_for_customer = filtered_for_customer[filtered_for_customer['Updated Customer Name'] == selected_updated_customer]
-            
-        dependent_customers = sorted(filtered_for_customer['Customer Name'].dropna().unique())
-        dependent_customers.insert(0, 'All')
-        selected_customer_name = st.sidebar.selectbox("Select Customer Name (OEM):", dependent_customers)
+            filtered_df = filtered_df[filtered_df['Updated Customer Name'] == selected_updated_customer]
         
-        oem_month_df = filtered_for_customer.copy()
+        customer_names = sorted(filtered_df['Customer Name'].dropna().unique())
+        customer_names.insert(0, 'All')
+        selected_customer_name = st.sidebar.selectbox("Select Customer Name (OEM):", customer_names)
+        
         if selected_customer_name != 'All':
-            oem_month_df = oem_month_df[oem_month_df['Customer Name'] == selected_customer_name]
-
+            filtered_df = filtered_df[filtered_df['Customer Name'] == selected_customer_name]
+            
         st.subheader('OEM - Power STG - Customer-wise Quantity')
-        oem_power_stg = oem_month_df[oem_month_df['Material Category'] == 'Power STG']
+        oem_power_stg = filtered_df[filtered_df['Material Category'] == 'Power STG']
         oem_power_cust_qty = oem_power_stg.groupby('Updated Customer Name')['Inv Qty'].sum().sort_values(ascending=False)
-        
         fig, ax = plt.subplots(figsize=(10, 5))
         sns.barplot(y=oem_power_cust_qty.index, x=oem_power_cust_qty.values, palette='Blues_r', ax=ax)
         for i, (name, value) in enumerate(zip(oem_power_cust_qty.index, oem_power_cust_qty.values)):
@@ -346,9 +343,8 @@ if uploaded_file is not None:
         st.pyplot(fig)
         
         st.subheader('OEM - Mechanical Stg - Customer-wise Quantity')
-        oem_mech_stg = oem_month_df[oem_month_df['Material Category'] == 'Mechanical Stg']
+        oem_mech_stg = filtered_df[filtered_df['Material Category'] == 'Mechanical Stg']
         oem_mech_cust_qty = oem_mech_stg.groupby('Updated Customer Name')['Inv Qty'].sum().sort_values(ascending=False)
-        
         fig, ax = plt.subplots(figsize=(10, 5))
         sns.barplot(y=oem_mech_cust_qty.index, x=oem_mech_cust_qty.values, palette='Greens_r', ax=ax)
         for i, (name, value) in enumerate(zip(oem_mech_cust_qty.index, oem_mech_cust_qty.values)):
@@ -356,17 +352,15 @@ if uploaded_file is not None:
         st.pyplot(fig)
         
         st.subheader('OEM - Customer-wise Total Value (₹)')
-        oem_cust_value = oem_month_df.groupby('Updated Customer Name')['Basic Amt.LocCur'].sum().sort_values(ascending=False)
-        
+        oem_cust_value = filtered_df.groupby('Updated Customer Name')['Basic Amt.LocCur'].sum().sort_values(ascending=False)
         fig, ax = plt.subplots(figsize=(10, 5))
         sns.barplot(y=oem_cust_value.index, x=oem_cust_value.values, palette='Oranges_r', ax=ax)
         for i, (name, value) in enumerate(zip(oem_cust_value.index, oem_cust_value.values)):
-            ax.text(value, i, f'{value:,.0f}', va='center')
+            ax.text(value, i, f'₹{value:,.0f}', va='center')
         st.pyplot(fig)
         
         st.subheader('OEM - Model-wise Quantity - Power STG')
         oem_power_model_qty = oem_power_stg.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
-        
         fig, ax = plt.subplots(figsize=(10, 5))
         sns.barplot(y=oem_power_model_qty.index, x=oem_power_model_qty.values, palette='Blues', ax=ax)
         for i, (name, value) in enumerate(zip(oem_power_model_qty.index, oem_power_model_qty.values)):
@@ -374,44 +368,47 @@ if uploaded_file is not None:
         st.pyplot(fig)
         
         st.subheader('OEM - Model-wise Quantity - Vane Pump')
-        oem_vane_pump = oem_month_df[oem_month_df['Material Category'] == 'Vane Pump']
+        oem_vane_pump = filtered_df[filtered_df['Material Category'] == 'Vane Pump']
         oem_vane_model_qty = oem_vane_pump.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
-        
         fig, ax = plt.subplots(figsize=(10, 5))
         sns.barplot(y=oem_vane_model_qty.index, x=oem_vane_model_qty.values, palette='Purples', ax=ax)
         for i, (name, value) in enumerate(zip(oem_vane_model_qty.index, oem_vane_model_qty.values)):
             ax.text(value, i, f'{value:,.0f}', va='center')
         st.pyplot(fig)
-        
+            
         st.subheader('OEM - Model-wise Quantity - Mechanical Stg')
         oem_mech_model_qty = oem_mech_stg.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
-        
         fig, ax = plt.subplots(figsize=(10, 5))
         sns.barplot(y=oem_mech_model_qty.index, x=oem_mech_model_qty.values, palette='Greens', ax=ax)
         for i, (name, value) in enumerate(zip(oem_mech_model_qty.index, oem_mech_model_qty.values)):
             ax.text(value, i, f'{value:,.0f}', va='center')
         st.pyplot(fig)
         
-        st.subheader('OEM - Customer-wise (Partial Input) - Model-wise Quantity - Power STG')
-        oem_customer_input = st.text_input('Type OEM Customer (Partial allowed):').lower()
+        st.subheader('OEM - Top 20 Material + Customer combinations by Basic Amount (₹) with Quantity')
         
-        oem_matching_customers = oem_power_stg['Updated Customer Name'].dropna().unique()
-        oem_match = [c for c in oem_matching_customers if oem_customer_input in c.lower()]
+        top_mat_cust = (
+            filtered_df.groupby(['Material', 'Updated Customer Name'])[['Basic Amt.LocCur', 'Inv Qty']]
+            .sum()
+            .sort_values(by='Basic Amt.LocCur', ascending=False)
+            .head(20)
+            .reset_index()
+        )
         
-        if oem_match:
-            oem_selected = oem_match[0]
-            st.write(f'Auto-selected: **{oem_selected}**')
-            oem_cust_power = oem_power_stg[oem_power_stg['Updated Customer Name'] == oem_selected]
-            oem_cust_model_qty = oem_cust_power.groupby('Model New')['Inv Qty'].sum().sort_values(ascending=False)
-            fig, ax = plt.subplots(figsize=(10, 5))
-            sns.barplot(y=oem_cust_model_qty.index, x=oem_cust_model_qty.values, palette='Blues', ax=ax)
+        top_mat_cust['Label'] = (
+            top_mat_cust['Material'].astype(str) + ' - ' + top_mat_cust['Updated Customer Name'] +
+            ' | Qty: ' + top_mat_cust['Inv Qty'].astype(int).astype(str)
+        )
+        
+        fig, ax = plt.subplots(figsize=(12, 8))
+        sns.barplot(y=top_mat_cust['Label'], x=top_mat_cust['Basic Amt.LocCur'], palette='rocket', ax=ax)
+        ax.set_xlabel("Basic Amount (₹)")
+        ax.set_ylabel("Material - Customer")
+        ax.set_title("Top 20 Material + Customer combinations by Basic Amt.LocCur")
+        
+        for i, (val, qty) in enumerate(zip(top_mat_cust['Basic Amt.LocCur'], top_mat_cust['Inv Qty'])):
+            ax.text(val, i, f'₹{int(val):,}', va='center')
             
-            for i, (name, value) in enumerate(zip(oem_cust_model_qty.index, oem_cust_model_qty.values)):
-                ax.text(value, i, f'{value:,.0f}', va='center')
-            st.pyplot(fig)
-            
-        elif oem_customer_input:
-            st.warning('No matching OEM customer found.')
+        st.pyplot(fig)
 
     elif page == 'Invoice Value':
         st.header('Invoice Value Page')
