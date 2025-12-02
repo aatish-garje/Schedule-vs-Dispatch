@@ -4,6 +4,8 @@ import requests
 from io import BytesIO
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Border, Side
+from openpyxl.styles import Alignment
+alignment_center = Alignment(horizontal='center', vertical='center')
 
 st.set_page_config(layout="wide")
 st.title("Schedule vs Dispatch Report")
@@ -521,12 +523,12 @@ else:
     st.write("### Mech Schedule")
     st.dataframe(schedule_mech, use_container_width=True)
 
-# --- Download logic (Excel with SUBTOTAL row, freeze panes, filters, borders, widths) ---
+# --- Download logic (Excel with SUBTOTAL row, freeze panes, filters, borders, widths, center alignment) ---
 if not power_to_download.empty or not mech_to_download.empty:
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
 
-        # Columns for which SUBTOTAL formulas will be applied (Option A)
+        # Columns for which SUBTOTAL formulas will be applied
         subtotal_cols = [
             "Initial Schedule",
             "REV-1",
@@ -540,32 +542,21 @@ if not power_to_download.empty or not mech_to_download.empty:
         ]
 
         def write_with_subtotals(df, sheet_name):
-            # Write header+data starting at row 3 (Excel row 3 = startrow=2)
             df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=2)
-
             ws = writer.book[sheet_name]
 
-            # Row layout:
-            # Row 1 = blank
-            # Row 2 = SUBTOTAL formulas
-            # Row 3 = headers
-            # Row 4+ = data
-
             data_start = 4
-            data_end = df.shape[0] + 3  # last data row
+            data_end = df.shape[0] + 3
 
-            # Write SUBTOTAL formulas in Row 2
             for col_idx, col_name in enumerate(df.columns, start=1):
                 if col_name in subtotal_cols:
                     col_letter = get_column_letter(col_idx)
                     formula = f"=SUBTOTAL(9,{col_letter}{data_start}:{col_letter}{data_end})"
                     ws[f"{col_letter}2"] = formula
 
-        # Write Power
+        # Write Sheets
         if not power_to_download.empty:
             write_with_subtotals(power_to_download, "Power")
-
-        # Write Mech
         if not mech_to_download.empty:
             write_with_subtotals(mech_to_download, "Mech")
 
@@ -575,30 +566,29 @@ if not power_to_download.empty or not mech_to_download.empty:
             top=Side(style='thin'), bottom=Side(style='thin')
         )
 
-        # Apply formatting: auto-width, borders, freeze, filter
+        from openpyxl.styles import Alignment
+        alignment_center = Alignment(horizontal='center', vertical='center')
+
+        # Apply formatting
         for sheet_name in writer.sheets:
             ws = workbook[sheet_name]
 
-            # Freeze pane BELOW header row (Row 3)
-            ws.freeze_panes = "A4"
-
-            # Auto-filter applied on header row (Row 3)
-            ws.auto_filter.ref = ws.dimensions
+            ws.freeze_panes = "A4"                  # Freeze rows above header
+            ws.auto_filter.ref = ws.dimensions      # Auto filter on header row
 
             # Auto column width
             for col in ws.columns:
                 max_len = max(len(str(cell.value)) for cell in col if cell.value) + 2
                 ws.column_dimensions[get_column_letter(col[0].column)].width = max_len
 
-            # Borders
+            # Borders + Center Alignment
             for row in ws.iter_rows(
-                min_row=1,
-                max_row=ws.max_row,
-                min_col=1,
-                max_col=ws.max_column
+                min_row=1, max_row=ws.max_row,
+                min_col=1, max_col=ws.max_column
             ):
                 for cell in row:
                     cell.border = thin_border
+                    cell.alignment = alignment_center
 
     output.seek(0)
     st.download_button(
@@ -607,5 +597,3 @@ if not power_to_download.empty or not mech_to_download.empty:
         "Schedule_with_Dispatch.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-
