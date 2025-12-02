@@ -521,24 +521,59 @@ else:
     st.write("### Mech Schedule")
     st.dataframe(schedule_mech, use_container_width=True)
 
-# --- Download logic (Excel with thin borders and auto column widths) ---
+# --- Download logic (Excel with SUBTOTAL row, thin borders and auto column widths) ---
 if not power_to_download.empty or not mech_to_download.empty:
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
+
+        # Columns for which we want SUBTOTAL formulas (option A)
+        subtotal_cols = [
+            "Initial Schedule",
+            "REV-1",
+            "REV-2",
+            "Marketing Requirement November-2025",
+            "Dispatch Qty",
+            "Balance Dispatch",
+            "FG",
+            "Dispatchable FG",
+            "Excess Dispatch"
+        ]
+
+        def write_with_subtotals(df, sheet_name):
+            # Write headers + data starting at row 3 (0-based startrow=2)
+            # Row 1: blank, Row 2: SUBTOTAL formulas, Row 3: headers, Row 4+: data
+            df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=2)
+            ws = writer.sheets[sheet_name]
+
+            data_start = 4
+            data_end = df.shape[0] + 3  # last data row
+
+            # Create SUBTOTAL formulas in row 2
+            for col_idx, col_name in enumerate(df.columns, start=1):
+                if col_name in subtotal_cols:
+                    col_letter = get_column_letter(col_idx)
+                    formula = f"=SUBTOTAL(9,{col_letter}{data_start}:{col_letter}{data_end})"
+                    ws[f"{col_letter}2"] = formula
+
         if not power_to_download.empty:
-            power_to_download.to_excel(writer, sheet_name='Power', index=False)
+            write_with_subtotals(power_to_download, "Power")
         if not mech_to_download.empty:
-            mech_to_download.to_excel(writer, sheet_name='Mech', index=False)
+            write_with_subtotals(mech_to_download, "Mech")
+
         workbook = writer.book
         thin_border = Border(
             left=Side(style='thin'), right=Side(style='thin'),
             top=Side(style='thin'), bottom=Side(style='thin')
         )
+
+        # Apply auto-width and borders for all sheets
         for sheet_name in writer.sheets:
             worksheet = workbook[sheet_name]
+            # Auto column width
             for col in worksheet.columns:
                 max_len = max(len(str(cell.value)) for cell in col if cell.value) + 2
                 worksheet.column_dimensions[get_column_letter(col[0].column)].width = max_len
+            # Borders
             for row in worksheet.iter_rows(
                 min_row=1,
                 max_row=worksheet.max_row,
@@ -547,6 +582,7 @@ if not power_to_download.empty or not mech_to_download.empty:
             ):
                 for cell in row:
                     cell.border = thin_border
+
     output.seek(0)
     st.download_button(
         "Download Excel",
