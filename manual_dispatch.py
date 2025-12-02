@@ -14,7 +14,11 @@ schedule_url = "https://drive.google.com/uc?id=19FkajdpPaiQHqXqR5eH0WqximI5Sohs7
 kit_part_url = "https://drive.google.com/uc?id=18YkiGvirKsrrwg8IZq2H3Aje5HAw-Djp"
 fg_url = "https://drive.google.com/uc?id=1JIEDeDMXOQKyxCUJTv2zHp6_hUecXBIt"  # kept just as reference; not auto-loaded
 
-# --- File upload / selection controls ---
+# =========================
+#  MAIN INPUT AREA (CENTER)
+# =========================
+
+st.subheader("Input Files")
 
 # 1) Sales Register: ALWAYS manual upload
 dispatch_file = st.file_uploader(
@@ -23,28 +27,30 @@ dispatch_file = st.file_uploader(
     key="dispatch_file"
 )
 
-# 2) Schedule: option to use Google Drive or manual upload
-st.sidebar.markdown("### Schedule File Source")
-schedule_source = st.sidebar.radio(
-    "Select Schedule Source",
-    ["Use Google Drive file", "Upload schedule manually"],
-    index=0
-)
+# 2) Schedule Source + 3) FG upload (NOT on sidebar)
+col1, col2 = st.columns(2)
 
-uploaded_schedule_file = None
-if schedule_source == "Upload schedule manually":
-    uploaded_schedule_file = st.sidebar.file_uploader(
-        "Upload Schedule Excel (with POWER & MECH sheets)",
-        type=["xlsx", "xls"],
-        key="schedule_file"
+with col1:
+    schedule_source = st.radio(
+        "Schedule File Source",
+        ["Use Google Drive file", "Upload schedule manually"],
+        index=0
     )
 
-# 3) FG Stock: optional upload
-fg_file = st.sidebar.file_uploader(
-    "Upload FG Stock File (optional)",
-    type=["xlsx", "xls"],
-    key="fg_file"
-)
+    uploaded_schedule_file = None
+    if schedule_source == "Upload schedule manually":
+        uploaded_schedule_file = st.file_uploader(
+            "Upload Schedule Excel (with POWER & MECH sheets)",
+            type=["xlsx", "xls"],
+            key="schedule_file"
+        )
+
+with col2:
+    fg_file = st.file_uploader(
+        "Upload FG Stock File (optional)",
+        type=["xlsx", "xls"],
+        key="fg_file"
+    )
 
 # --- Block execution until mandatory files are provided ---
 
@@ -281,7 +287,7 @@ if fg_available:
             return ''
         def row_sum(row):
             part = str(row.get(part_col, '')).strip()
-            plant = str(get_plant_value(row, plant_col)).strip()
+            plant = str(get_plant_value(row, plant_key=plant_col)).strip()
             if part == '' or plant == '':
                 return 0
             return fg_df.loc[(fg_df['Material'] == part) & (fg_df['Plant'] == plant), 'Unrestricted'].sum()
@@ -387,7 +393,9 @@ if fg_available:
 
 schedule_mech = schedule_mech[mech_cols]
 
-# --- UI: Choose view ---
+# ==============
+# SIDEBAR (ONLY VIEW OPTIONS HERE)
+# ==============
 view_option = st.sidebar.radio("Select View", ["All", "Power Schedule", "Mech Schedule"])
 
 def apply_filters(df, code, customer, billing_plant, model, part_number_search, sheet_type):
@@ -423,7 +431,6 @@ def display_subtotals(df):
         subtotal_data['Balance Dispatch'] = df['Balance Dispatch'].sum()
     if 'Excess Dispatch' in df.columns:
         subtotal_data['Excess Dispatch'] = df['Excess Dispatch'].sum()
-    # Only show FG totals if those columns exist (i.e., FG file uploaded)
     if 'FG' in df.columns:
         subtotal_data['FG'] = df['FG'].sum()
     if 'Dispatchable FG' in df.columns:
