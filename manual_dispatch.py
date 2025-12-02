@@ -574,7 +574,11 @@ if not power_to_download.empty or not mech_to_download.empty:
             ws = workbook[sheet_name]
 
             ws.freeze_panes = "A4"                  # Freeze rows above header
-            ws.auto_filter.ref = ws.dimensions      # Auto filter on header row
+            last_col = ws.max_column
+            last_col_letter = get_column_letter(last_col)
+            
+            # Apply filter to header row (Row 3)
+            ws.auto_filter.ref = f"A3:{last_col_letter}3"     # Auto filter on header row
 
             # Auto column width
             for col in ws.columns:
@@ -597,3 +601,4 @@ if not power_to_download.empty or not mech_to_download.empty:
         "Schedule_with_Dispatch.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
