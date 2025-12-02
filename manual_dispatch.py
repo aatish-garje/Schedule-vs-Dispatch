@@ -52,6 +52,20 @@ with col2:
         key="fg_file"
     )
 
+# ==============
+# SIDEBAR CONTROLS
+# ==============
+
+# FG filter dropdown (affects Storage Location filter on FG file)
+fg_filter_option = st.sidebar.selectbox(
+    "FG Filter",
+    ["With Painting", "ONLY FG 4000 & 4010"],
+    index=0
+)
+
+# View selector
+view_option = st.sidebar.radio("Select View", ["All", "Power Schedule", "Mech Schedule"])
+
 # --- Block execution until mandatory files are provided ---
 
 if dispatch_file is None:
@@ -71,11 +85,31 @@ else:
         st.stop()
     schedule_file = uploaded_schedule_file
 
-# FG availability flag
+# FG availability flag + reading + Storage Location filter
 fg_available = fg_file is not None
 if fg_available:
     try:
-        fg_df = pd.read_excel(fg_file)
+        # Read uploaded FG file
+        fg_raw = pd.read_excel(fg_file)
+
+        # Drop first unintended index column if present
+        if 'Unnamed: 0' in fg_raw.columns:
+            fg_raw = fg_raw.drop(columns=['Unnamed: 0'])
+
+        # Decide allowed Storage Locations based on dropdown
+        if fg_filter_option == "With Painting":
+            allowed_sloc = ['2340', '4000', '4010']
+        else:  # "ONLY FG 4000 & 4010"
+            allowed_sloc = ['4000', '4010']
+
+        # Apply Storage Location filter if column exists
+        if 'Storage Location' in fg_raw.columns:
+            fg_raw = fg_raw[
+                fg_raw['Storage Location'].astype(str).isin(allowed_sloc)
+            ]
+
+        fg_df = fg_raw.copy()
+
     except Exception as e:
         st.error(f"Error reading uploaded FG file: {e}")
         st.stop()
@@ -392,11 +426,6 @@ if fg_available:
         mech_cols.insert(mech_cols.index('Excess Dispatch'), 'Dispatchable FG')
 
 schedule_mech = schedule_mech[mech_cols]
-
-# ==============
-# SIDEBAR (ONLY VIEW OPTIONS HERE)
-# ==============
-view_option = st.sidebar.radio("Select View", ["All", "Power Schedule", "Mech Schedule"])
 
 def apply_filters(df, code, customer, billing_plant, model, part_number_search, sheet_type):
     if code:
