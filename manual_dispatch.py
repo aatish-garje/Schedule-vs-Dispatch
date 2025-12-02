@@ -427,4 +427,94 @@ def display_subtotals(df):
     if 'FG' in df.columns:
         subtotal_data['FG'] = df['FG'].sum()
     if 'Dispatchable FG' in df.columns:
-        subtotal_data['Dispatchable FG'] = pd.to_numeric(df['Dispatchable F]()
+        subtotal_data['Dispatchable FG'] = pd.to_numeric(df['Dispatchable FG'], errors='coerce').fillna(0).sum()
+
+    st.markdown(
+        f"""
+        <div style="background-color:{bg_color}; padding:10px; border-radius:5px;">
+            {"".join([f"<p style='color:{text_color};'>{k}: {v:.0f}</p>" for k, v in subtotal_data.items()])}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# --- Views and filters ---
+if view_option == "Power Schedule":
+    code = st.sidebar.multiselect('Code', schedule_power['Code'].unique())
+    customer = st.sidebar.multiselect('Customer', schedule_power['Customer'].unique())
+    billing_plant = st.sidebar.multiselect(
+        'Billing Plant',
+        schedule_power['BILLING PLANT'].unique() if 'BILLING PLANT' in schedule_power.columns else []
+    )
+    model = st.sidebar.multiselect(
+        'Model',
+        schedule_power['MODEL'].unique() if 'MODEL' in schedule_power.columns else []
+    )
+    part_number_search = st.sidebar.text_input('Part Number (Type & Press Enter)')
+    filtered_power = apply_filters(schedule_power, code, customer, billing_plant, model, part_number_search, 'Power')
+
+    display_subtotals(filtered_power)
+    st.dataframe(filtered_power, use_container_width=True)
+    power_to_download = filtered_power
+    mech_to_download = pd.DataFrame()
+
+elif view_option == "Mech Schedule":
+    code = st.sidebar.multiselect('Code', schedule_mech['Code'].unique())
+    customer = st.sidebar.multiselect('Customer', schedule_mech['Customer'].unique())
+    billing_plant = st.sidebar.multiselect(
+        'Billing Plant',
+        schedule_mech['Billing Plant'].unique() if 'Billing Plant' in schedule_mech.columns else []
+    )
+    model = st.sidebar.multiselect(
+        'Model',
+        schedule_mech['Model'].unique() if 'Model' in schedule_mech.columns else []
+    )
+    part_number_search = st.sidebar.text_input('Part Number (Type & Press Enter)')
+    filtered_mech = apply_filters(schedule_mech, code, customer, billing_plant, model, part_number_search, 'Mech')
+
+    display_subtotals(filtered_mech)
+    st.dataframe(filtered_mech, use_container_width=True)
+    power_to_download = pd.DataFrame()
+    mech_to_download = filtered_mech
+
+else:
+    power_to_download = schedule_power.copy()
+    mech_to_download = schedule_mech.copy()
+    st.write("### Power Schedule")
+    st.dataframe(schedule_power, use_container_width=True)
+    st.write("### Mech Schedule")
+    st.dataframe(schedule_mech, use_container_width=True)
+
+# --- Download logic (Excel with thin borders and auto column widths) ---
+if not power_to_download.empty or not mech_to_download.empty:
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        if not power_to_download.empty:
+            power_to_download.to_excel(writer, sheet_name='Power', index=False)
+        if not mech_to_download.empty:
+            mech_to_download.to_excel(writer, sheet_name='Mech', index=False)
+        workbook = writer.book
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+        for sheet_name in writer.sheets:
+            worksheet = workbook[sheet_name]
+            for col in worksheet.columns:
+                max_len = max(len(str(cell.value)) for cell in col if cell.value) + 2
+                worksheet.column_dimensions[get_column_letter(col[0].column)].width = max_len
+            for row in worksheet.iter_rows(
+                min_row=1,
+                max_row=worksheet.max_row,
+                min_col=1,
+                max_col=worksheet.max_column
+            ):
+                for cell in row:
+                    cell.border = thin_border
+    output.seek(0)
+    st.download_button(
+        "Download Excel",
+        output,
+        "Schedule_with_Dispatch.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
