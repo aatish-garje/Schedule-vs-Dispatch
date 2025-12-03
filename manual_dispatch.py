@@ -11,10 +11,8 @@ st.set_page_config(layout="wide")
 st.title("Schedule vs Dispatch Report")
 
 # --- Google Drive Links (still used for schedule & kit) ---
-sales_register_url = "https://drive.google.com/uc?id=19pNz65xMPEBCrXQuEiFu6VVDXYhqeYjy"  # NOT used now (manual upload only)
 schedule_url = "https://drive.google.com/uc?id=19FkajdpPaiQHqXqR5eH0WqximI5Sohs7"
 kit_part_url = "https://drive.google.com/uc?id=18YkiGvirKsrrwg8IZq2H3Aje5HAw-Djp"
-fg_url = "https://drive.google.com/uc?id=1JIEDeDMXOQKyxCUJTv2zHp6_hUecXBIt"  # kept just as reference; not auto-loaded
 
 # =========================
 #  MAIN INPUT AREA (CENTER)
@@ -601,4 +599,5 @@ if not power_to_download.empty or not mech_to_download.empty:
         "Schedule_with_Dispatch.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
