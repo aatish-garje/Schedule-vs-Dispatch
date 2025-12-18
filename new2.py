@@ -410,6 +410,29 @@ if uploaded_file is not None:
             ax.text(val, i, f'₹{int(val):,}', va='center')
             
         st.pyplot(fig)
+        
+        filtered_df = filtered_df.sort_values('Month Start Date')
+        st.subheader("OEM – Month-wise Revenue Trend")
+        
+        revenue_monthly = (
+            filtered_df
+            .groupby(['Month-Year', 'Month Start Date'])['Basic Amt.LocCur']
+            .sum()
+            .reset_index()
+            .sort_values('Month Start Date')
+        )
+        
+        fig_revenue = px.line(
+            revenue_monthly,
+            x='Month-Year',
+            y='Basic Amt.LocCur',
+            markers=True,
+            title='Month-wise Revenue (₹)',
+            labels={'Basic Amt.LocCur': 'Revenue (₹)'}
+        )
+        
+        fig_revenue.update_layout(yaxis_tickprefix='₹ ')
+        st.plotly_chart(fig_revenue, use_container_width=True)
 
     elif page == 'Invoice Value':
         st.header('Invoice Value Page')
@@ -956,3 +979,4 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
