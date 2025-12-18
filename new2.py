@@ -417,27 +417,50 @@ if uploaded_file is not None:
         filtered_df = filtered_df.sort_values('Month Start Date')
         
         st.subheader("OEM – Month-wise Revenue Trend (₹ Cr)")
+        
+        filtered_df = filtered_df.sort_values('Month Start Date')
         revenue_monthly = (
             filtered_df
-            .groupby(['Month-Year', 'Month Start Date'])['Basic Amt.LocCur']
+            .groupby(
+                ['Month-Year', 'Month Start Date', 'Updated Customer Name']
+            )['Basic Amt.LocCur']
             .sum()
             .reset_index()
             .sort_values('Month Start Date')
         )
         
         revenue_monthly['Revenue (Cr)'] = revenue_monthly['Basic Amt.LocCur'] / 1e7
+
+        if selected_updated_customer == 'All':
+            fig_revenue = px.line(
+                revenue_monthly,
+                x='Month-Year',
+                y='Revenue (Cr)',
+                color='Updated Customer Name',
+                markers=True,
+                title='Month-wise Revenue Comparison – All OEM Customers (₹ Cr)',
+            )
         
-        fig_revenue = px.line(\
-            revenue_monthly,
-            x='Month-Year',
-            y='Revenue (Cr)',
-            markers=True,
-            title='Month-wise Revenue (₹ Cr)',
-            labels={'Basic Amt.LocCur': 'Revenue (₹)'}
-        )
-        
-        fig_revenue.update_layout(yaxis_title='Revenue (₹ Cr)', yaxis_tickformat='.2f')
-        st.plotly_chart(fig_revenue, use_container_width=True)
+        else:
+            single_cust_df = revenue_monthly[
+            revenue_monthly['Updated Customer Name'] == selected_updated_customer
+            ]
+            fig_revenue = px.line(
+                single_cust_df,
+                x='Month-Year',
+                y='Revenue (Cr)',
+                markers=True,
+                title=f'Month-wise Revenue Trend – {selected_updated_customer} (₹ Cr)',
+            )
+            fig_revenue.update_layout(
+                xaxis_title='Month',
+                yaxis_title='Revenue (₹ Cr)',
+                yaxis_tickformat='.2f',
+                legend_title='Customer',
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_revenue, use_container_width=True)
         st.subheader("OEM – Power STG Quantity Trend")
         
         power_qty = (
@@ -1004,6 +1027,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
