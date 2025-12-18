@@ -26,12 +26,12 @@ if uploaded_file is not None:
         'Updated Customer Name',
         np.select(
             [
-                dispatch_data['Customer Name'].str.lower().str.startswith('ashok'),
-                dispatch_data['Customer Name'].str.lower().str.startswith('tata') & ~dispatch_data['Customer Name'].str.lower().str.startswith('tata advanced'),
-                dispatch_data['Customer Name'].str.lower().str.startswith('blue energy'),
-                dispatch_data['Customer Name'].str.lower().str.startswith('force motors'),
-                dispatch_data['Customer Name'].str.lower().str.startswith('cnh'),
-                dispatch_data['Customer Name'].str.lower().str.startswith('bajaj auto'),
+                dispatch_data['Customer Name'].str.lower().str.startswith('ashok', na=False),
+                dispatch_data['Customer Name'].str.lower().str.startswith('tata', na=False) & ~dispatch_data['Customer Name'].str.lower().str.startswith('tata advanced', na=False),
+                dispatch_data['Customer Name'].str.lower().str.startswith('blue energy', na=False),
+                dispatch_data['Customer Name'].str.lower().str.startswith('force motors', na=False),
+                dispatch_data['Customer Name'].str.lower().str.startswith('cnh', na=False),
+                dispatch_data['Customer Name'].str.lower().str.startswith('bajaj auto', na=False),
                 dispatch_data['Sold-to Party'].str.upper().isin(['M0163', 'M0164', 'M0231']),
                 dispatch_data['Sold-to Party'].str.upper().isin(['M0009', 'M0010', 'M0221']),
             ],
@@ -954,4 +954,5 @@ if uploaded_file is not None:
         ]
 
         pivot_table.columns.name = None
+
         st.dataframe(pivot_table)
