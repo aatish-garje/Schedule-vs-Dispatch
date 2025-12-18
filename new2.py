@@ -445,6 +445,7 @@ if uploaded_file is not None:
                 y='Revenue (Cr)',
                 color='Updated Customer Name',
                 markers=True,
+                text=revenue_monthly['Revenue (Cr)'].round(2),
                 category_orders={'Month-Year': month_order},
                 title='Month-wise Revenue Comparison – All OEM Customers (₹ Cr)',
             )
@@ -458,6 +459,7 @@ if uploaded_file is not None:
                 x='Month-Year',
                 y='Revenue (Cr)',
                 markers=True,
+                text=revenue_monthly['Revenue (Cr)'].round(2),
                 category_orders={'Month-Year': month_order},
                 title=f'Month-wise Revenue Trend – {selected_updated_customer} (₹ Cr)',
             )
@@ -1037,6 +1039,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
