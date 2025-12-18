@@ -412,8 +412,8 @@ if uploaded_file is not None:
         st.pyplot(fig)
         
         filtered_df = filtered_df.sort_values('Month Start Date')
-        st.subheader("OEM – Month-wise Revenue Trend")
         
+        st.subheader("OEM – Month-wise Revenue Trend")
         revenue_monthly = (
             filtered_df
             .groupby(['Month-Year', 'Month Start Date'])['Basic Amt.LocCur']
@@ -433,6 +433,26 @@ if uploaded_file is not None:
         
         fig_revenue.update_layout(yaxis_tickprefix='₹ ')
         st.plotly_chart(fig_revenue, use_container_width=True)
+        st.subheader("OEM – Power STG Quantity Trend")
+        
+        power_qty = (
+            filtered_df[filtered_df['Material Category'] == 'Power STG']
+            .groupby(['Month-Year', 'Month Start Date'])['Inv Qty']
+            .sum()
+            .reset_index()
+            .sort_values('Month Start Date')
+        )
+        
+        fig_power = px.line(
+            power_qty,
+            x='Month-Year',
+            y='Inv Qty',
+            markers=True,
+            title='Month-wise Power STG Quantity',
+            labels={'Inv Qty': 'Quantity'}
+        )
+        
+        st.plotly_chart(fig_power, use_container_width=True)
 
     elif page == 'Invoice Value':
         st.header('Invoice Value Page')
@@ -979,4 +999,5 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
