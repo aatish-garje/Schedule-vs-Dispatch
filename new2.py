@@ -445,7 +445,7 @@ if uploaded_file is not None:
                 y='Revenue (Cr)',
                 color='Updated Customer Name',
                 markers=True,
-                text=revenue_monthly['Revenue (Cr)'].round(2),
+                text=revenue_monthly['Revenue (Cr)'],
                 category_orders={'Month-Year': month_order},
                 title='Month-wise Revenue Comparison – All OEM Customers (₹ Cr)',
             )
@@ -459,17 +459,29 @@ if uploaded_file is not None:
                 x='Month-Year',
                 y='Revenue (Cr)',
                 markers=True,
-                text=revenue_monthly['Revenue (Cr)'].round(2),
+                text=revenue_monthly['Revenue (Cr)'],
                 category_orders={'Month-Year': month_order},
                 title=f'Month-wise Revenue Trend – {selected_updated_customer} (₹ Cr)',
+            )
+            fig_revenue.update_traces(
+                textposition='top center',
+                texttemplate='₹ %{text:.2f} Cr',
+                cliponaxis=False
             )
             fig_revenue.update_layout(
                 xaxis_title='Month',
                 yaxis_title='Revenue (₹ Cr)',
                 yaxis_tickformat='.2f',
                 legend_title='Customer',
-                hovermode='x unified'
+                hovermode='x unified',
+                margin=dict(t=80),
+                uniformtext_minsize=9,
+                uniformtext_mode='hide'
             )
+            fig_revenue.update_yaxes(range=[
+                0,
+                revenue_monthly['Revenue (Cr)'].max() * 1.25
+            ])
             
         st.plotly_chart(fig_revenue, use_container_width=True)
         
@@ -1039,6 +1051,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
