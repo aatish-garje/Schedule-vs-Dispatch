@@ -460,7 +460,8 @@ if uploaded_file is not None:
                 hovermode='x unified'
             )
             
-            st.plotly_chart(fig_revenue, use_container_width=True)
+        st.plotly_chart(fig_revenue, use_container_width=True)
+        
         st.subheader("OEM – Power STG Quantity Trend")
         
         power_qty = (
@@ -1027,6 +1028,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
