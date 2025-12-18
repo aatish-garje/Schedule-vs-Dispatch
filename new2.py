@@ -486,24 +486,68 @@ if uploaded_file is not None:
         st.plotly_chart(fig_revenue, use_container_width=True)
         
         st.subheader("OEM – Power STG Quantity Trend")
-        
-        power_qty = (
+        filtered_df = filtered_df.sort_values('Month Start Date')
+        power_qty_monthly = (
             filtered_df[filtered_df['Material Category'] == 'Power STG']
-            .groupby(['Month-Year', 'Month Start Date'])['Inv Qty']
+            .groupby(['Month-Year', 'Month Start Date', 'Updated Customer Name'])['Inv Qty']
             .sum()
             .reset_index()
             .sort_values('Month Start Date')
-        )
         
-        fig_power = px.line(
-            power_qty,
-            x='Month-Year',
-            y='Inv Qty',
-            markers=True,
-            title='Month-wise Power STG Quantity',
-            labels={'Inv Qty': 'Quantity'}
         )
+        month_order = (
+            power_qty_monthly
+            .sort_values('Month Start Date')['Month-Year']
+            .unique()
+            .tolist()
+        )
+        if selected_updated_customer == 'All':
+            fig_power = px.line(
+                power_qty_monthly,
+                x='Month-Year',
+                y='Inv Qty',
+                color='Updated Customer Name',
+                markers=True,
+                text=power_qty_monthly['Inv Qty'],
+                category_orders={'Month-Year': month_order},
+                title='Month-wise Power STG Quantity – All OEM Customers'
+            )
         
+        else:
+            single_cust_power = power_qty_monthly[
+            power_qty_monthly['Updated Customer Name'] == selected_updated_customer
+            ]
+            fig_power = px.line(
+                single_cust_power,
+                x='Month-Year',
+                y='Inv Qty',
+                markers=True,
+                text=single_cust_power['Inv Qty'],
+                category_orders={'Month-Year': month_order},
+                title=f'Month-wise Power STG Quantity – {selected_updated_customer}'
+            )
+            fig_power.update_traces(
+                textposition='top center',
+                texttemplate='%{text:,.0f}',  # 19,200 format
+                cliponaxis=False
+            )
+            
+            fig_power.update_layout(
+                xaxis_title='Month',
+                yaxis_title='Quantity',
+                yaxis_tickformat=',',        # Force comma format
+                legend_title='Customer',
+                hovermode='x unified',
+                margin=dict(t=80),
+                uniformtext_minsize=9,
+                uniformtext_mode='hide'
+            )
+            
+            fig_power.update_yaxes(
+                range=[0, power_qty_monthly['Inv Qty'].max() * 1.25],
+                separatethousands=True      # Explicitly prevent K/M
+            )
+            
         st.plotly_chart(fig_power, use_container_width=True)
 
     elif page == 'Invoice Value':
@@ -1051,6 +1095,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
