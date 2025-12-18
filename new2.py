@@ -432,7 +432,7 @@ if uploaded_file is not None:
             x='Month-Year',
             y='Revenue (Cr)',
             markers=True,
-            title='Month-wise Revenue (₹ Cr)'
+            title='Month-wise Revenue (₹ Cr)',
             labels={'Basic Amt.LocCur': 'Revenue (₹)'}
         )
         
@@ -1004,6 +1004,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
