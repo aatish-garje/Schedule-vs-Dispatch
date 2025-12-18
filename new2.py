@@ -6,6 +6,9 @@ import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+def to_cr(value):
+    return value / 1e7
+    
 st.set_page_config(layout="wide")
 st.title('Dispatch Data Dashboard 📊')
 
@@ -413,7 +416,7 @@ if uploaded_file is not None:
         
         filtered_df = filtered_df.sort_values('Month Start Date')
         
-        st.subheader("OEM – Month-wise Revenue Trend")
+        st.subheader("OEM – Month-wise Revenue Trend (₹ Cr)")
         revenue_monthly = (
             filtered_df
             .groupby(['Month-Year', 'Month Start Date'])['Basic Amt.LocCur']
@@ -422,16 +425,18 @@ if uploaded_file is not None:
             .sort_values('Month Start Date')
         )
         
-        fig_revenue = px.line(
+        revenue_monthly['Revenue (Cr)'] = revenue_monthly['Basic Amt.LocCur'] / 1e7
+        
+        fig_revenue = px.line(\
             revenue_monthly,
             x='Month-Year',
-            y='Basic Amt.LocCur',
+            y='Revenue (Cr)',
             markers=True,
-            title='Month-wise Revenue (₹)',
+            title='Month-wise Revenue (₹ Cr)'
             labels={'Basic Amt.LocCur': 'Revenue (₹)'}
         )
         
-        fig_revenue.update_layout(yaxis_tickprefix='₹ ')
+        fig_revenue.update_layout(yaxis_title='Revenue (₹ Cr)', yaxis_tickformat='.2f')
         st.plotly_chart(fig_revenue, use_container_width=True)
         st.subheader("OEM – Power STG Quantity Trend")
         
@@ -999,5 +1004,6 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
