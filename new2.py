@@ -419,6 +419,7 @@ if uploaded_file is not None:
         st.subheader("OEM – Month-wise Revenue Trend (₹ Cr)")
         
         filtered_df = filtered_df.sort_values('Month Start Date')
+        
         revenue_monthly = (
             filtered_df
             .groupby(
@@ -430,6 +431,12 @@ if uploaded_file is not None:
         )
         
         revenue_monthly['Revenue (Cr)'] = revenue_monthly['Basic Amt.LocCur'] / 1e7
+        month_order = (
+            revenue_monthly
+            .sort_values('Month Start Date')['Month-Year']
+            .unique()
+            .tolist()
+        )
 
         if selected_updated_customer == 'All':
             fig_revenue = px.line(
@@ -438,6 +445,7 @@ if uploaded_file is not None:
                 y='Revenue (Cr)',
                 color='Updated Customer Name',
                 markers=True,
+                category_orders={'Month-Year': month_order},
                 title='Month-wise Revenue Comparison – All OEM Customers (₹ Cr)',
             )
         
@@ -450,6 +458,7 @@ if uploaded_file is not None:
                 x='Month-Year',
                 y='Revenue (Cr)',
                 markers=True,
+                category_orders={'Month-Year': month_order},
                 title=f'Month-wise Revenue Trend – {selected_updated_customer} (₹ Cr)',
             )
             fig_revenue.update_layout(
@@ -1028,6 +1037,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
