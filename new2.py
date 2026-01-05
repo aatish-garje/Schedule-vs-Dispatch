@@ -605,7 +605,7 @@ if uploaded_file is not None:
         selected_invoice = (
             'Select from Suggestions', 
             ['All'] + suggested_invoices, 
-            index=0, 
+            default=['All'], 
             key='invoice_value_invoice_filter'
         )
 
@@ -1095,6 +1095,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
