@@ -143,7 +143,10 @@ if uploaded_file is not None:
         st.header('Overview Page')
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
-        selected_month = ('Select Month-Year (Overview)', month_list)
+        selected_month = st.sidebar.selectbox(
+            'Select Month-Year (Overview)',
+            month_list
+        )
         
         overview_data = dispatch_data.copy()
         if selected_month != 'All':
@@ -325,14 +328,20 @@ if uploaded_file is not None:
             
         updated_customers = sorted(filtered_df['Updated Customer Name'].dropna().unique())
         updated_customers.insert(0, 'All')
-        selected_updated_customer = ("Select Updated Customer Name (OEM):", updated_customers)
+        selected_updated_customer = st.sidebar.selectbox(
+            "Select Updated Customer Name (OEM):",
+            updated_customers
+        )
         
         if selected_updated_customer != 'All':
             filtered_df = filtered_df[filtered_df['Updated Customer Name'] == selected_updated_customer]
         
         customer_names = sorted(filtered_df['Customer Name'].dropna().unique())
         customer_names.insert(0, 'All')
-        selected_customer_name = ("Select Customer Name (OEM):", customer_names)
+        selected_customer_name = st.sidebar.selectbox(
+            "Select Customer Name (OEM):",
+            customer_names
+        )
         
         if selected_customer_name != 'All':
             filtered_df = filtered_df[filtered_df['Customer Name'] == selected_customer_name]
@@ -602,7 +611,7 @@ if uploaded_file is not None:
         typed_invoice = st.sidebar.text_input('Type Invoice No.')
         suggested_invoices = [inv for inv in invoice_numbers if typed_invoice in inv] if typed_invoice else []
 
-        selected_invoice = (
+        selected_invoice = st.sidebar.multiselect(
             'Select from Suggestions', 
             ['All'] + suggested_invoices, 
             default=['All'], 
@@ -643,7 +652,7 @@ if uploaded_file is not None:
         selected_material = (
             'Select from Suggestions', 
             ['All'] + suggested_materials, 
-            index=0, 
+            default=['All'], 
             key='invoice_value_material_filter'
         )
 
@@ -841,7 +850,7 @@ if uploaded_file is not None:
         typed_material = st.sidebar.text_input('Type Material')
         suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
 
-        selected_material = st.sidebar.multiselect('Select from Suggestions', ['All'] + suggested_materials, index=0)
+        selected_material = st.sidebar.multiselect('Select from Suggestions', ['All'] + suggested_materials, default=['All'])
         clear_material_filter = st.sidebar.button("Clear Material Filter")
 
         filtered_data = dispatch_data.copy()
@@ -1011,7 +1020,7 @@ if uploaded_file is not None:
         typed_material = st.sidebar.text_input('Type Material')
         suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
 
-        selected_material = st.sidebar.multiselect('Select from Suggestions', ['All'] + suggested_materials, index=0)
+        selected_material = st.sidebar.multiselect('Select from Suggestions', ['All'] + suggested_materials, default=['All'])
         clear_material_filter = st.sidebar.button("Clear Material Filter")
 
         billing_dates = pd.to_datetime(filtered_daywise['Billing Date'], dayfirst=True, errors='coerce')
@@ -1095,6 +1104,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
