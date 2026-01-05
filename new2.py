@@ -143,10 +143,7 @@ if uploaded_file is not None:
         st.header('Overview Page')
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
-        selected_month = st.sidebar.selectbox(
-            'Select Month-Year (Overview)',
-            month_list
-        )
+        selected_month = st.sidebar.selectbox('Select Month-Year (Overview)', month_list)
         
         overview_data = dispatch_data.copy()
         if selected_month != 'All':
@@ -319,7 +316,7 @@ if uploaded_file is not None:
         oem_months = sorted(oem_df['Month-Year'].dropna().unique())
         oem_months_with_all = ['All'] + list(oem_months)
 
-        selected_month = ('Select Month (OEM):', oem_months_with_all)
+        selected_month = st.sidebar.selectbox('Select Month (OEM):', oem_months_with_all)
 
         filtered_df = oem_df.copy()
         
@@ -328,20 +325,14 @@ if uploaded_file is not None:
             
         updated_customers = sorted(filtered_df['Updated Customer Name'].dropna().unique())
         updated_customers.insert(0, 'All')
-        selected_updated_customer = st.sidebar.selectbox(
-            "Select Updated Customer Name (OEM):",
-            updated_customers
-        )
+        selected_updated_customer = st.sidebar.selectbox("Select Updated Customer Name (OEM):", updated_customers)
         
         if selected_updated_customer != 'All':
             filtered_df = filtered_df[filtered_df['Updated Customer Name'] == selected_updated_customer]
         
         customer_names = sorted(filtered_df['Customer Name'].dropna().unique())
         customer_names.insert(0, 'All')
-        selected_customer_name = st.sidebar.selectbox(
-            "Select Customer Name (OEM):",
-            customer_names
-        )
+        selected_customer_name = st.sidebar.selectbox("Select Customer Name (OEM):", customer_names)
         
         if selected_customer_name != 'All':
             filtered_df = filtered_df[filtered_df['Customer Name'] == selected_customer_name]
@@ -573,19 +564,19 @@ if uploaded_file is not None:
             
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
-        selected_month = ('Select Month-Year', month_list)
+        selected_month = st.sidebar.selectbox('Select Month-Year', month_list)
             
         fy_list = sorted(dispatch_data['Financial Year'].dropna().unique().tolist())
         fy_list.insert(0, 'All')
-        selected_fy = ('Select Financial Year', fy_list)
+        selected_fy = st.sidebar.selectbox('Select Financial Year', fy_list)
             
         updated_customer_list = sorted(filtered_for_customer_list['Updated Customer Name'].dropna().unique().tolist())
         updated_customer_list.insert(0, 'All')
-        selected_updated_customer = ('Select Updated Customer Name', updated_customer_list)
+        selected_updated_customer = st.sidebar.selectbox('Select Updated Customer Name', updated_customer_list)
 
         model_list = sorted(dispatch_data['Model New'].dropna().unique().tolist())
         model_list.insert(0, 'All')
-        selected_model = ('Select Model New', model_list)
+        selected_model = st.sidebar.selectbox('Select Model New', model_list)
 
         filtered_for_original = filtered_for_customer_list.copy()
         if selected_updated_customer != 'All':
@@ -593,15 +584,15 @@ if uploaded_file is not None:
                 
         customer_list = sorted(filtered_for_original['Customer Name'].dropna().unique().tolist())
         customer_list.insert(0, 'All')
-        selected_customer = ('Select Customer Name', customer_list)
+        selected_customer = st.sidebar.selectbox('Select Customer Name', customer_list)
         
         plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
         plant_list.insert(0, 'All')
-        selected_plant = ('Select Plant', plant_list)
+        selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
 
         material_category_list = sorted(dispatch_data['Material Category'].dropna().unique().tolist())
         material_category_list.insert(0, 'All')
-        selected_material_category = ('Select Material Category', material_category_list)
+        selected_material_category = st.sidebar.selectbox('Select Material Category', material_category_list)
 
 
         st.sidebar.markdown('---')
@@ -611,10 +602,10 @@ if uploaded_file is not None:
         typed_invoice = st.sidebar.text_input('Type Invoice No.')
         suggested_invoices = [inv for inv in invoice_numbers if typed_invoice in inv] if typed_invoice else []
 
-        selected_invoice = st.sidebar.multiselect(
+        selected_invoice = st.sidebar.selectbox(
             'Select from Suggestions', 
             ['All'] + suggested_invoices, 
-            default=['All'], 
+            index=0, 
             key='invoice_value_invoice_filter'
         )
 
@@ -649,10 +640,10 @@ if uploaded_file is not None:
 
         suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
 
-        selected_material = st.sidebar.multiselect(
+        selected_material = st.sidebar.selectbox(
             'Select from Suggestions', 
             ['All'] + suggested_materials, 
-            default=['All'], 
+            index=0, 
             key='invoice_value_material_filter'
         )
 
@@ -791,19 +782,19 @@ if uploaded_file is not None:
 
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
-        selected_month = st.sidebar.multiselect('Select Month-Year', month_list)
+        selected_month = st.sidebar.selectbox('Select Month-Year', month_list)
 
         fy_list = sorted(dispatch_data['Financial Year'].dropna().unique().tolist())
         fy_list.insert(0, 'All')
-        selected_fy = st.sidebar.multiselect('Select Financial Year', fy_list)
+        selected_fy = st.sidebar.selectbox('Select Financial Year', fy_list)
 
         updated_customer_list = sorted(filtered_for_customer_list['Updated Customer Name'].dropna().unique().tolist())
         updated_customer_list.insert(0, 'All')
-        selected_updated_customer = st.sidebar.multiselect('Select Updated Customer Name', updated_customer_list)
+        selected_updated_customer = st.sidebar.selectbox('Select Updated Customer Name', updated_customer_list)
 
         model_list = sorted(dispatch_data['Model New'].dropna().unique().tolist())
         model_list.insert(0, 'All')
-        selected_model = st.sidebar.multiselect('Select Model New', model_list)
+        selected_model = st.sidebar.selectbox('Select Model New', model_list)
 
         filtered_for_original = filtered_for_customer_list.copy()
         if selected_updated_customer != 'All':
@@ -811,15 +802,15 @@ if uploaded_file is not None:
 
         customer_list = sorted(filtered_for_original['Customer Name'].dropna().unique().tolist())
         customer_list.insert(0, 'All')
-        selected_customer = st.sidebar.multiselect('Select Customer Name', customer_list)
+        selected_customer = st.sidebar.selectbox('Select Customer Name', customer_list)
 
         plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
         plant_list.insert(0, 'All')
-        selected_plant = st.sidebar.multiselect('Select Plant', plant_list)
+        selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
 
         material_category_list = sorted(dispatch_data['Material Category'].dropna().unique().tolist())
         material_category_list.insert(0, 'All')
-        selected_material_category = st.sidebar.multiselect('Select Material Category', material_category_list)
+        selected_material_category = st.sidebar.selectbox('Select Material Category', material_category_list)
 
         billing_dates = pd.to_datetime(dispatch_data['Billing Date'], dayfirst=True, errors='coerce')
 
@@ -850,7 +841,7 @@ if uploaded_file is not None:
         typed_material = st.sidebar.text_input('Type Material')
         suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
 
-        selected_material = st.sidebar.multiselect('Select from Suggestions', ['All'] + suggested_materials, default=['All'])
+        selected_material = st.sidebar.selectbox('Select from Suggestions', ['All'] + suggested_materials, index=0)
         clear_material_filter = st.sidebar.button("Clear Material Filter")
 
         filtered_data = dispatch_data.copy()
@@ -984,15 +975,15 @@ if uploaded_file is not None:
 
         month_list = sorted(dispatch_data['Month-Year'].dropna().unique().tolist())
         month_list.insert(0, 'All')
-        selected_month = st.sidebar.multiselect('Select Month-Year', month_list)
+        selected_month = st.sidebar.selectbox('Select Month-Year', month_list)
 
         fy_list = sorted(dispatch_data['Financial Year'].dropna().unique().tolist())
         fy_list.insert(0, 'All')
-        selected_fy = st.sidebar.multiselect('Select Financial Year', fy_list)
+        selected_fy = st.sidebar.selectbox('Select Financial Year', fy_list)
 
         updated_customer_list = sorted(filtered_for_customer_list['Updated Customer Name'].dropna().unique().tolist())
         updated_customer_list.insert(0, 'All')
-        selected_updated_customer = st.sidebar.multiselect('Select Updated Customer Name', updated_customer_list)
+        selected_updated_customer = st.sidebar.selectbox('Select Updated Customer Name', updated_customer_list)
 
         filtered_for_original = filtered_for_customer_list.copy()
         if selected_updated_customer != 'All':
@@ -1000,19 +991,19 @@ if uploaded_file is not None:
 
         customer_list = sorted(filtered_for_original['Customer Name'].dropna().unique().tolist())
         customer_list.insert(0, 'All')
-        selected_customer = st.sidebar.multiselect('Select Customer Name', customer_list)
+        selected_customer = st.sidebar.selectbox('Select Customer Name', customer_list)
 
         plant_list = sorted(dispatch_data['Plant'].dropna().unique().astype(str).tolist())
         plant_list.insert(0, 'All')
-        selected_plant = st.sidebar.multiselect('Select Plant', plant_list)
+        selected_plant = st.sidebar.selectbox('Select Plant', plant_list)
 
         material_category_list = sorted(dispatch_data['Material Category'].dropna().unique().tolist())
         material_category_list.insert(0, 'All')
-        selected_material_category = st.sidebar.multiselect('Select Material Category', material_category_list)
+        selected_material_category = st.sidebar.selectbox('Select Material Category', material_category_list)
 
         model_list = sorted(dispatch_data['Model New'].dropna().unique().tolist())
         model_list.insert(0, 'All')
-        selected_model = st.sidebar.multiselect('Select Model New', model_list)
+        selected_model = st.sidebar.selectbox('Select Model New', model_list)
 
         st.sidebar.markdown('---')
         st.sidebar.subheader('Material Filter (Type to Search)')
@@ -1020,7 +1011,7 @@ if uploaded_file is not None:
         typed_material = st.sidebar.text_input('Type Material')
         suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
 
-        selected_material = st.sidebar.multiselect('Select from Suggestions', ['All'] + suggested_materials, default=['All'])
+        selected_material = st.sidebar.selectbox('Select from Suggestions', ['All'] + suggested_materials, index=0)
         clear_material_filter = st.sidebar.button("Clear Material Filter")
 
         billing_dates = pd.to_datetime(filtered_daywise['Billing Date'], dayfirst=True, errors='coerce')
@@ -1104,17 +1095,3 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
