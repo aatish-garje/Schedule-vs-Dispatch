@@ -649,7 +649,7 @@ if uploaded_file is not None:
 
         suggested_materials = [p for p in material_numbers if typed_material.lower() in p.lower()] if typed_material else []
 
-        selected_material = (
+        selected_material = st.sidebar.multiselect(
             'Select from Suggestions', 
             ['All'] + suggested_materials, 
             default=['All'], 
@@ -1104,6 +1104,7 @@ if uploaded_file is not None:
         pivot_table.columns.name = None
 
         st.dataframe(pivot_table)
+
 
 
 
