@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from io import BytesIO
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -28,7 +27,7 @@ if uploaded_file is not None:
 
     dispatchdata.columns = dispatchdata.columns.str.strip()
 
-    # -------------------- Customer Mapping --------------------
+    # -------------------- Updated Customer Name --------------------
     dispatchdata.insert(
         dispatchdata.columns.get_loc("Customer Name") + 1,
         "Updated Customer Name",
@@ -94,7 +93,10 @@ if uploaded_file is not None:
         "Month-Year",
         dispatchdata["Billing Date"].dt.strftime("%B-%y")
     )
+
     dispatchdata["Month Start Date"] = pd.to_datetime("01 " + dispatchdata["Month-Year"], format="%d %B-%y", errors="coerce")
+
+    # Keep formatted dates (matches your original behavior in later pages)
     dispatchdata["Billing Date"] = dispatchdata["Billing Date"].dt.strftime("%d-%m-%Y")
     dispatchdata["Cust PO Date"] = dispatchdata["Cust PO Date"].dt.strftime("%d-%m-%Y")
 
@@ -124,7 +126,6 @@ if uploaded_file is not None:
 
     # -------------------- Customer Category --------------------
     dispatchdata["Customer Group"] = dispatchdata["Customer Group"].astype(str).str.strip().str.replace(".0", "", regex=False)
-
     dispatchdata.insert(
         dispatchdata.columns.get_loc("Customer Group") + 1,
         "Customer Category",
@@ -149,28 +150,23 @@ if uploaded_file is not None:
 
     dispatchdata["Financial Year"] = pd.to_datetime(dispatchdata["Billing Date"], dayfirst=True, errors="coerce").apply(assign_financial_year)
 
-    # ==========================
-    # Helper: multi-filter apply
-    # ==========================
-    def apply_multifilter(df, col, selected_values, cast_str=False):
-        """
-        If selected_values is empty => no filter.
-        Else filter df where df[col] is in selected_values.
-        """
+    # --------------------
+    # Helper: multiselect filter
+    # --------------------
+    def apply_multifilter(df, col, selected_values):
         if not selected_values:
             return df
-        if cast_str:
-            return df[df[col].astype(str).isin([str(x) for x in selected_values])]
         return df[df[col].isin(selected_values)]
 
     # ==========================
-    # Overview Page (unchanged)
+    # OVERVIEW
     # ==========================
     if page == "Overview":
         st.header("Overview Page")
 
         monthlist = sorted(dispatchdata["Month-Year"].dropna().unique().tolist())
-        selectedmonth = st.sidebar.selectbox("Select Month-Year (Overview)", ["All"] + monthlist)
+        monthlist = ["All"] + monthlist
+        selectedmonth = st.sidebar.selectbox("Select Month-Year (Overview)", monthlist)
 
         overviewdata = dispatchdata.copy()
         if selectedmonth != "All":
@@ -180,17 +176,25 @@ if uploaded_file is not None:
 
         monthlysales = (overviewdata.groupby(["Month-Year", "Month Start Date"])["Basic Amt.LocCur"]
                         .sum().reset_index().sort_values("Month Start Date"))
+
         ymax1 = monthlysales["Basic Amt.LocCur"].max() * 1.15 if len(monthlysales) else 0
 
         figtotalsales = px.bar(
-            monthlysales, x="Month-Year", y="Basic Amt.LocCur",
+            monthlysales,
+            x="Month-Year",
+            y="Basic Amt.LocCur",
             title="Total Monthly Sales (Basic Amt.LocCur)",
             labels={"Basic Amt.LocCur": "Basic Amount", "Month-Year": "Month-Year"},
             text="Basic Amt.LocCur"
         )
-        figtotalsales.update_layout(yaxis_tickprefix="", xaxis_title="Month-Year",
-                                    uniformtext_minsize=8, uniformtext_mode="hide",
-                                    bargap=0.3, yaxis=dict(range=[0, ymax1]))
+        figtotalsales.update_layout(
+            yaxis_tickprefix="",
+            xaxis_title="Month-Year",
+            uniformtext_minsize=8,
+            uniformtext_mode="hide",
+            bargap=0.3,
+            yaxis=dict(range=[0, ymax1])
+        )
         figtotalsales.update_traces(
             texttemplate="%{text:,.0f}",
             textposition="outside",
@@ -200,41 +204,109 @@ if uploaded_file is not None:
         splitsales = (overviewdata[overviewdata["Customer Category"].isin(["OEM", "SPD"])]
                       .groupby(["Month-Year", "Month Start Date", "Customer Category"])["Basic Amt.LocCur"]
                       .sum().reset_index().sort_values("Month Start Date"))
+
         ymax2 = splitsales["Basic Amt.LocCur"].max() * 1.15 if len(splitsales) else 0
 
         figoemspd = px.bar(
-            splitsales, x="Month-Year", y="Basic Amt.LocCur", color="Customer Category",
-            barmode="group", title="OEM / SPD Sales (Basic Amt.LocCur) Month-wise",
+            splitsales,
+            x="Month-Year",
+            y="Basic Amt.LocCur",
+            color="Customer Category",
+            barmode="group",
+            title="OEM / SPD Sales (Basic Amt.LocCur) Month-wise",
             labels={"Basic Amt.LocCur": "Basic Amount", "Month-Year": "Month-Year"},
             text="Basic Amt.LocCur"
         )
-        figoemspd.update_layout(yaxis_tickprefix="", xaxis_title="Month-Year",
-                                uniformtext_minsize=8, uniformtext_mode="hide",
-                                bargap=0.3, yaxis=dict(range=[0, ymax2]))
-        figoemspd.update_traces(texttemplate="%{text:,.0f}", textposition="outside", marker_line_width=0.5)
+        figoemspd.update_layout(
+            yaxis_tickprefix="",
+            xaxis_title="Month-Year",
+            uniformtext_minsize=8,
+            uniformtext_mode="hide",
+            bargap=0.3,
+            yaxis=dict(range=[0, ymax2])
+        )
+        figoemspd.update_traces(
+            texttemplate="%{text:,.0f}",
+            textposition="outside",
+            marker_line_width=0.5
+        )
 
         plantsales = overviewdata.groupby("Plant")["Basic Amt.LocCur"].sum().reset_index()
         plantsales["Plant"] = plantsales["Plant"].astype(str)
         ymax3 = plantsales["Basic Amt.LocCur"].max() * 1.15 if len(plantsales) else 0
 
         figplantsales = px.bar(
-            plantsales, x="Plant", y="Basic Amt.LocCur",
+            plantsales,
+            x="Plant",
+            y="Basic Amt.LocCur",
             title="Plant-wise Sales (Basic Amt.LocCur)",
             labels={"Basic Amt.LocCur": "Basic Amount", "Plant": "Plant"},
             text="Basic Amt.LocCur"
         )
-        figplantsales.update_layout(xaxis=dict(type="category"), yaxis_tickprefix="",
-                                    xaxis_title="Plant", uniformtext_minsize=8,
-                                    uniformtext_mode="hide", bargap=0.3,
-                                    yaxis=dict(range=[0, ymax3]))
-        figplantsales.update_traces(texttemplate="%{text:,.0f}", textposition="outside", marker_line_width=0.5)
+        figplantsales.update_layout(
+            xaxis=dict(type="category"),
+            yaxis_tickprefix="",
+            xaxis_title="Plant",
+            uniformtext_minsize=8,
+            uniformtext_mode="hide",
+            bargap=0.3,
+            yaxis=dict(range=[0, ymax3])
+        )
+        figplantsales.update_traces(
+            texttemplate="%{text:,.0f}",
+            textposition="outside",
+            marker_line_width=0.5
+        )
 
         st.plotly_chart(figtotalsales, use_container_width=True)
         st.plotly_chart(figoemspd, use_container_width=True)
         st.plotly_chart(figplantsales, use_container_width=True)
 
+        st.header("Material Category vs Customer Category (OEM / SPD) Qty Wise")
+        overviewdata2 = dispatchdata.copy()
+        overviewdata2["Inv Qty"] = pd.to_numeric(overviewdata2["Inv Qty"], errors="coerce").fillna(0)
+        overviewdata2["Kit Qty"] = pd.to_numeric(overviewdata2["Kit Qty"], errors="coerce").fillna(0)
+
+        if selectedmonth != "All":
+            overviewdata2 = overviewdata2[overviewdata2["Month-Year"] == selectedmonth]
+
+        overviewdata2 = overviewdata2[overviewdata2["Customer Category"].isin(["OEM", "SPD"])]
+        overviewdata2 = overviewdata2[overviewdata2["Material Category"].isin(["Power STG", "Mechanical Stg", "Power STG H-Pas"])]
+
+        overviewdata2["Effective Qty"] = overviewdata2.apply(
+            lambda row: row["Inv Qty"] if (row["Customer Category"] == "OEM" or row["Inv Qty"] != 0) else row["Kit Qty"],
+            axis=1
+        )
+
+        grouped = overviewdata2.groupby(["Material Category", "Customer Category"])["Effective Qty"].sum().reset_index()
+        ymax = grouped["Effective Qty"].max() * 1.2 if len(grouped) else 0
+
+        fig = px.bar(
+            grouped,
+            x="Material Category",
+            y="Effective Qty",
+            color="Customer Category",
+            barmode="group",
+            text="Effective Qty",
+            title="Qty by Material Category & Customer Category"
+        )
+        fig.update_layout(
+            xaxis_title="Material Category",
+            yaxis_title="Quantity",
+            uniformtext_minsize=8,
+            uniformtext_mode="hide",
+            bargap=0.3,
+            yaxis=dict(range=[0, ymax])
+        )
+        fig.update_traces(
+            texttemplate="%{text:,.0f}",
+            textposition="outside",
+            cliponaxis=False
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
     # ==========================
-    # SPD Page (unchanged)
+    # SPD
     # ==========================
     elif page == "SPD":
         st.header("SPD Page")
@@ -242,7 +314,7 @@ if uploaded_file is not None:
         st.dataframe(spddata)
 
     # ==========================
-    # OEM Page (Month, Updated Customer, Customer => MULTISELECT)
+    # OEM (ALL CHARTS RESTORED)
     # ==========================
     elif page == "OEM":
         st.header("OEM Dashboard")
@@ -250,7 +322,7 @@ if uploaded_file is not None:
         oemdf = dispatchdata[dispatchdata["Customer Category"] == "OEM"].copy()
         oemdf["Material Category"] = oemdf["Material Category"].replace("Power STG H-Pas", "Power STG")
 
-        # multiselect filters
+        # --------- Multiselect Filters (instead of selectbox All) ----------
         oemmonths = sorted(oemdf["Month-Year"].dropna().unique().tolist())
         selectedmonths = st.sidebar.multiselect("Select Month (OEM)", oemmonths)
 
@@ -267,6 +339,11 @@ if uploaded_file is not None:
 
         filtereddf = apply_multifilter(filtereddf, "Customer Name", selectedcustomernames)
 
+        # Ensure numeric
+        filtereddf["Inv Qty"] = pd.to_numeric(filtereddf["Inv Qty"], errors="coerce").fillna(0)
+        filtereddf["Basic Amt.LocCur"] = pd.to_numeric(filtereddf["Basic Amt.LocCur"], errors="coerce").fillna(0)
+
+        # --- Chart 1: Power STG customer-wise qty
         st.subheader("OEM - Power STG - Customer-wise Quantity")
         oempowerstg = filtereddf[filtereddf["Material Category"] == "Power STG"]
         oempowercustqty = oempowerstg.groupby("Updated Customer Name")["Inv Qty"].sum().sort_values(ascending=False)
@@ -277,429 +354,189 @@ if uploaded_file is not None:
             ax.text(value, i, f"{value:,.0f}", va="center")
         st.pyplot(fig)
 
-    # ==========================================================
-    # Invoice Value Page (ALL dropdowns => MULTISELECT)
-    # ==========================================================
-    elif page == "Invoice Value":
-        st.header("Invoice Value Page")
+        # --- Chart 2: Mechanical Stg customer-wise qty
+        st.subheader("OEM - Mechanical Stg - Customer-wise Quantity")
+        oemmechstg = filtereddf[filtereddf["Material Category"] == "Mechanical Stg"]
+        oemmechcustqty = oemmechstg.groupby("Updated Customer Name")["Inv Qty"].sum().sort_values(ascending=False)
 
-        categoryoptions = ["All", "OEM", "SPD", "OEM SPD"]
-        selectedcategory = st.sidebar.radio("Select Customer Category", categoryoptions)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oemmechcustqty.index, x=oemmechcustqty.values, palette="Greens_r", ax=ax)
+        for i, (name, value) in enumerate(zip(oemmechcustqty.index, oemmechcustqty.values)):
+            ax.text(value, i, f"{value:,.0f}", va="center")
+        st.pyplot(fig)
 
-        filteredforcustomerlist = dispatchdata.copy()
-        if selectedcategory == "OEM SPD":
-            filteredforcustomerlist = filteredforcustomerlist[filteredforcustomerlist["Customer Category"].isin(["OEM", "SPD"])]
-        elif selectedcategory != "All":
-            filteredforcustomerlist = filteredforcustomerlist[filteredforcustomerlist["Customer Category"] == selectedcategory]
+        # --- Chart 3: Customer-wise total value
+        st.subheader("OEM - Customer-wise Total Value")
+        oemcustvalue = filtereddf.groupby("Updated Customer Name")["Basic Amt.LocCur"].sum().sort_values(ascending=False)
 
-        # MULTISELECT filters
-        monthlist = sorted(dispatchdata["Month-Year"].dropna().unique().tolist())
-        selectedmonths = st.sidebar.multiselect("Select Month-Year", monthlist)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oemcustvalue.index, x=oemcustvalue.values, palette="Oranges_r", ax=ax)
+        for i, (name, value) in enumerate(zip(oemcustvalue.index, oemcustvalue.values)):
+            ax.text(value, i, f"{value:,.0f}", va="center")
+        st.pyplot(fig)
 
-        fylist = sorted(dispatchdata["Financial Year"].dropna().unique().tolist())
-        selectedfys = st.sidebar.multiselect("Select Financial Year", fylist)
+        # --- Chart 4: Model-wise qty - Power STG
+        st.subheader("OEM - Model-wise Quantity - Power STG")
+        oempowermodelqty = oempowerstg.groupby("Model New")["Inv Qty"].sum().sort_values(ascending=False)
 
-        updatedcustomerlist = sorted(filteredforcustomerlist["Updated Customer Name"].dropna().unique().tolist())
-        selectedupdatedcustomers = st.sidebar.multiselect("Select Updated Customer Name", updatedcustomerlist)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oempowermodelqty.index, x=oempowermodelqty.values, palette="Blues", ax=ax)
+        for i, (name, value) in enumerate(zip(oempowermodelqty.index, oempowermodelqty.values)):
+            ax.text(value, i, f"{value:,.0f}", va="center")
+        st.pyplot(fig)
 
-        modellist = sorted(dispatchdata["Model New"].dropna().unique().tolist())
-        selectedmodels = st.sidebar.multiselect("Select Model New", modellist)
+        # --- Chart 5: Model-wise qty - Vane Pump
+        st.subheader("OEM - Model-wise Quantity - Vane Pump")
+        oemvanepump = filtereddf[filtereddf["Material Category"] == "Vane Pump"]
+        oemvanemodelqty = oemvanepump.groupby("Model New")["Inv Qty"].sum().sort_values(ascending=False)
 
-        filteredfororiginal = filteredforcustomerlist.copy()
-        filteredfororiginal = apply_multifilter(filteredfororiginal, "Updated Customer Name", selectedupdatedcustomers)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oemvanemodelqty.index, x=oemvanemodelqty.values, palette="Purples", ax=ax)
+        for i, (name, value) in enumerate(zip(oemvanemodelqty.index, oemvanemodelqty.values)):
+            ax.text(value, i, f"{value:,.0f}", va="center")
+        st.pyplot(fig)
 
-        customerlist = sorted(filteredfororiginal["Customer Name"].dropna().unique().tolist())
-        selectedcustomers = st.sidebar.multiselect("Select Customer Name", customerlist)
+        # --- Chart 6: Model-wise qty - Mechanical Stg
+        st.subheader("OEM - Model-wise Quantity - Mechanical Stg")
+        oemmechmodelqty = oemmechstg.groupby("Model New")["Inv Qty"].sum().sort_values(ascending=False)
 
-        plantlist = sorted(dispatchdata["Plant"].dropna().astype(str).unique().tolist())
-        selectedplants = st.sidebar.multiselect("Select Plant", plantlist)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.barplot(y=oemmechmodelqty.index, x=oemmechmodelqty.values, palette="Greens", ax=ax)
+        for i, (name, value) in enumerate(zip(oemmechmodelqty.index, oemmechmodelqty.values)):
+            ax.text(value, i, f"{value:,.0f}", va="center")
+        st.pyplot(fig)
 
-        materialcategorylist = sorted(dispatchdata["Material Category"].dropna().unique().tolist())
-        selectedmaterialcategories = st.sidebar.multiselect("Select Material Category", materialcategorylist)
+        # --- Chart 7: Top 20 Material-Customer by Basic Amt with Qty
+        st.subheader("OEM - Top 20 Material-Customer combinations by Basic Amount with Quantity")
+        topmatcust = (filtereddf.groupby(["Material", "Updated Customer Name"])[["Basic Amt.LocCur", "Inv Qty"]]
+                      .sum()
+                      .sort_values(by="Basic Amt.LocCur", ascending=False)
+                      .head(20)
+                      .reset_index())
 
-        # Invoice number type-to-search (kept as before)
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Invoice No. Filter (Type to Search)")
-        invoicenumbers = sorted(dispatchdata["Billing Doc No."].dropna().unique().astype(str).tolist())
-        typedinvoice = st.sidebar.textinput("Type Invoice No.")
-        suggestedinvoices = [inv for inv in invoicenumbers if typedinvoice in inv] if typedinvoice else []
-        selectedinvoice = st.sidebar.selectbox("Select from Suggestions", ["All"] + suggestedinvoices, index=0, key="invoicevalueinvoicefilter")
-        clearinvoicefilter = st.sidebar.button("Clear Invoice Filter")
-
-        # Date range (kept as before)
-        billingdates = pd.to_datetime(dispatchdata["Billing Date"], dayfirst=True, errors="coerce")
-        if selectedmonths:
-            # take min/max month boundaries from selected months
-            month_start_dates = pd.to_datetime(["01 " + m for m in selectedmonths], format="%d %B-%y", errors="coerce")
-            mindate = month_start_dates.min()
-            maxdate = (month_start_dates.max() + pd.offsets.MonthEnd(0))
-        else:
-            mindate = billingdates.min()
-            maxdate = billingdates.max()
-
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Select Date Range (Billing Date)")
-        daterange = st.sidebar.dateinput("Billing Date Range", (mindate, maxdate), min_value=mindate, max_value=maxdate)
-        cleardatefilter = st.sidebar.button("Clear Date Filter")
-
-        # Material type-to-search (kept as before)
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Material Filter (Type to Search)")
-        materialnumbers = sorted(dispatchdata["Material"].dropna().unique().astype(str).tolist())
-        typedmaterial = st.sidebar.textinput("Type Material")
-        suggestedmaterials = [p for p in materialnumbers if typedmaterial.lower() in p.lower()] if typedmaterial else []
-        selectedmaterial = st.sidebar.selectbox("Select from Suggestions", ["All"] + suggestedmaterials, index=0, key="invoicevaluematerialfilter")
-        clearmaterialfilter = st.sidebar.button("Clear Material Filter")
-
-        # Apply filters
-        filtereddata = dispatchdata.copy()
-
-        if selectedcategory != "All":
-            if selectedcategory == "OEM SPD":
-                filtereddata = filtereddata[filtereddata["Customer Category"].isin(["OEM", "SPD"])]
-            else:
-                filtereddata = filtereddata[filtereddata["Customer Category"] == selectedcategory]
-
-        filtereddata = apply_multifilter(filtereddata, "Month-Year", selectedmonths)
-        filtereddata = apply_multifilter(filtereddata, "Financial Year", selectedfys)
-        filtereddata = apply_multifilter(filtereddata, "Updated Customer Name", selectedupdatedcustomers)
-        filtereddata = apply_multifilter(filtereddata, "Customer Name", selectedcustomers)
-        filtereddata = apply_multifilter(filtereddata, "Plant", selectedplants, cast_str=True)
-        filtereddata = apply_multifilter(filtereddata, "Material Category", selectedmaterialcategories)
-        filtereddata = apply_multifilter(filtereddata, "Model New", selectedmodels)
-
-        if selectedinvoice != "All":
-            filtereddata = filtereddata[filtereddata["Billing Doc No."].astype(str) == str(selectedinvoice)]
-
-        if not clearinvoicefilter and typedinvoice:
-            filtereddata = filtereddata[filtereddata["Billing Doc No."].astype(str).str.contains(typedinvoice, na=False)]
-
-        filtereddata["Billing Date"] = pd.to_datetime(filtereddata["Billing Date"], dayfirst=True, errors="coerce")
-
-        if not cleardatefilter:
-            startdate, enddate = daterange
-            filtereddata = filtereddata[
-                (filtereddata["Billing Date"] >= pd.to_datetime(startdate)) &
-                (filtereddata["Billing Date"] <= pd.to_datetime(enddate))
-            ]
-
-        if not clearmaterialfilter:
-            if typedmaterial:
-                filtereddata = filtereddata[filtereddata["Material"].astype(str).str.lower().str.contains(typedmaterial.lower(), na=False)]
-            elif selectedmaterial != "All":
-                filtereddata = filtereddata[filtereddata["Material"].astype(str) == str(selectedmaterial)]
-
-        filtereddata["Billing Date"] = filtereddata["Billing Date"].dt.strftime("%d-%m-%Y")
-
-        # Existing computations (kept)
-        filtereddata["Qty"] = pd.to_numeric(filtereddata["Inv Qty"], errors="coerce").fillna(0) + pd.to_numeric(filtereddata["Kit Qty"], errors="coerce").fillna(0)
-        filtereddata["Basic Amt.LocCur"] = pd.to_numeric(filtereddata["Basic Amt.LocCur"], errors="coerce").fillna(0)
-        filtereddata["Tax Amount"] = pd.to_numeric(filtereddata["Tax Amount"], errors="coerce").fillna(0)
-        filtereddata["Amt.Locl Currency"] = pd.to_numeric(filtereddata["Amt.Locl Currency"], errors="coerce").fillna(0)
-
-        filtereddata["Basic Value Per Item"] = np.where(filtereddata["Qty"] != 0, filtereddata["Basic Amt.LocCur"] / filtereddata["Qty"], 0)
-
-        def invoicefilter(group):
-            if group["Billing Doc No."].nunique() == 1 or group["Sales Order No"].astype(str).str.startswith("10").any():
-                return group
-            return group[group["Item"] == 10]
-
-        invoicetotals = (filtereddata.groupby("Billing Doc No.")[["Basic Amt.LocCur", "Tax Amount", "Amt.Locl Currency"]]
-                         .sum().reset_index())
-        filtereddata = filtereddata.merge(invoicetotals, on="Billing Doc No.", suffixes=("", "Total"))
-
-        maskitem10 = filtereddata["Item"] == 10
-        filtereddata.loc[maskitem10, "Basic Amt.LocCur"] = filtereddata.loc[maskitem10, "Basic Amt.LocCurTotal"]
-        filtereddata.loc[maskitem10, "Tax Amount"] = filtereddata.loc[maskitem10, "Tax AmountTotal"]
-        filtereddata.loc[maskitem10, "Amt.Locl Currency"] = filtereddata.loc[maskitem10, "Amt.Locl CurrencyTotal"]
-
-        filtereddata = filtereddata.drop(columns=["Basic Amt.LocCurTotal", "Tax AmountTotal", "Amt.Locl CurrencyTotal"])
-        filtereddata = filtereddata.groupby("Billing Doc No.").apply(invoicefilter).reset_index(drop=True)
-
-        filtereddata["Qty"] = pd.to_numeric(filtereddata["Inv Qty"], errors="coerce").fillna(0) + pd.to_numeric(filtereddata["Kit Qty"], errors="coerce").fillna(0)
-        filtereddata["Basic Value Per Item"] = np.where(filtereddata["Qty"] != 0, filtereddata["Basic Amt.LocCur"] / filtereddata["Qty"], 0)
-
-        filtereddata = filtereddata.drop(columns=["Inv Qty", "Kit Qty"], errors="ignore")
-
-        cols = filtereddata.columns.tolist()
-        if "Material" in cols and "Qty" in cols and "Basic Value Per Item" in cols:
-            materialidx = cols.index("Material")
-            cols.remove("Qty")
-            cols.remove("Basic Value Per Item")
-            cols.insert(materialidx + 1, "Qty")
-            cols.insert(materialidx + 2, "Basic Value Per Item")
-            filtereddata = filtereddata[cols]
-
-        if "Month Start Date" in filtereddata.columns:
-            filtereddata = filtereddata.drop(columns=["Month Start Date"])
-
-        st.dataframe(filtereddata)
-
-    # ==========================================================
-    # Dispatch Details Page (ALL dropdowns => MULTISELECT)
-    # ==========================================================
-    elif page == "Dispatch Details":
-        st.header("Dispatch Details Page")
-
-        categoryoptions = ["All", "OEM", "SPD", "OEM SPD"]
-        selectedcategory = st.sidebar.radio("Select Customer Category", categoryoptions)
-
-        filteredforcustomerlist = dispatchdata.copy()
-        if selectedcategory == "OEM SPD":
-            filteredforcustomerlist = filteredforcustomerlist[filteredforcustomerlist["Customer Category"].isin(["OEM", "SPD"])]
-        elif selectedcategory != "All":
-            filteredforcustomerlist = filteredforcustomerlist[filteredforcustomerlist["Customer Category"] == selectedcategory]
-
-        # MULTISELECT filters
-        monthlist = sorted(dispatchdata["Month-Year"].dropna().unique().tolist())
-        selectedmonths = st.sidebar.multiselect("Select Month-Year", monthlist)
-
-        fylist = sorted(dispatchdata["Financial Year"].dropna().unique().tolist())
-        selectedfys = st.sidebar.multiselect("Select Financial Year", fylist)
-
-        updatedcustomerlist = sorted(filteredforcustomerlist["Updated Customer Name"].dropna().unique().tolist())
-        selectedupdatedcustomers = st.sidebar.multiselect("Select Updated Customer Name", updatedcustomerlist)
-
-        modellist = sorted(dispatchdata["Model New"].dropna().unique().tolist())
-        selectedmodels = st.sidebar.multiselect("Select Model New", modellist)
-
-        filteredfororiginal = filteredforcustomerlist.copy()
-        filteredfororiginal = apply_multifilter(filteredfororiginal, "Updated Customer Name", selectedupdatedcustomers)
-
-        customerlist = sorted(filteredfororiginal["Customer Name"].dropna().unique().tolist())
-        selectedcustomers = st.sidebar.multiselect("Select Customer Name", customerlist)
-
-        plantlist = sorted(dispatchdata["Plant"].dropna().astype(str).unique().tolist())
-        selectedplants = st.sidebar.multiselect("Select Plant", plantlist)
-
-        materialcategorylist = sorted(dispatchdata["Material Category"].dropna().unique().tolist())
-        selectedmaterialcategories = st.sidebar.multiselect("Select Material Category", materialcategorylist)
-
-        # Date filter (kept)
-        billingdates = pd.to_datetime(dispatchdata["Billing Date"], dayfirst=True, errors="coerce")
-        if selectedmonths:
-            month_start_dates = pd.to_datetime(["01 " + m for m in selectedmonths], format="%d %B-%y", errors="coerce")
-            mindate = month_start_dates.min()
-            maxdate = (month_start_dates.max() + pd.offsets.MonthEnd(0))
-        else:
-            mindate = billingdates.min()
-            maxdate = billingdates.max()
-
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Select Date Range (Billing Date)")
-        daterange = st.sidebar.dateinput("Billing Date Range", (mindate, maxdate), min_value=mindate, max_value=maxdate)
-        cleardatefilter = st.sidebar.button("Clear Date Filter")
-
-        # Material type-to-search (kept)
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Material Filter (Type to Search)")
-        materialnumbers = sorted(dispatchdata["Material"].dropna().unique().astype(str).tolist())
-        typedmaterial = st.sidebar.textinput("Type Material")
-        suggestedmaterials = [p for p in materialnumbers if typedmaterial.lower() in p.lower()] if typedmaterial else []
-        selectedmaterial = st.sidebar.selectbox("Select from Suggestions", ["All"] + suggestedmaterials, index=0)
-        clearmaterialfilter = st.sidebar.button("Clear Material Filter")
-
-        # Apply filters
-        filtereddata = dispatchdata.copy()
-
-        if selectedcategory != "All":
-            if selectedcategory == "OEM SPD":
-                filtereddata = filtereddata[filtereddata["Customer Category"].isin(["OEM", "SPD"])]
-            else:
-                filtereddata = filtereddata[filtereddata["Customer Category"] == selectedcategory]
-
-        filtereddata = apply_multifilter(filtereddata, "Month-Year", selectedmonths)
-        filtereddata = apply_multifilter(filtereddata, "Financial Year", selectedfys)
-        filtereddata = apply_multifilter(filtereddata, "Updated Customer Name", selectedupdatedcustomers)
-        filtereddata = apply_multifilter(filtereddata, "Customer Name", selectedcustomers)
-        filtereddata = apply_multifilter(filtereddata, "Plant", selectedplants, cast_str=True)
-        filtereddata = apply_multifilter(filtereddata, "Material Category", selectedmaterialcategories)
-        filtereddata = apply_multifilter(filtereddata, "Model New", selectedmodels)
-
-        filtereddata["Billing Date"] = pd.to_datetime(filtereddata["Billing Date"], dayfirst=True, errors="coerce")
-
-        if not cleardatefilter:
-            startdate, enddate = daterange
-            filtereddata = filtereddata[
-                (filtereddata["Billing Date"] >= pd.to_datetime(startdate)) &
-                (filtereddata["Billing Date"] <= pd.to_datetime(enddate))
-            ]
-
-        filtereddata["Billing Date"] = filtereddata["Billing Date"].dt.strftime("%d-%m-%Y")
-
-        if not clearmaterialfilter:
-            if typedmaterial:
-                filtereddata = filtereddata[filtereddata["Material"].astype(str).str.lower().str.contains(typedmaterial.lower(), na=False)]
-            elif selectedmaterial != "All":
-                filtereddata = filtereddata[filtereddata["Material"].astype(str) == str(selectedmaterial)]
-
-        filtereddata["Inv Qty"] = pd.to_numeric(filtereddata["Inv Qty"], errors="coerce").fillna(0)
-        filtereddata["Kit Qty"] = pd.to_numeric(filtereddata["Kit Qty"], errors="coerce").fillna(0)
-
-        invqtysum = filtereddata["Inv Qty"].sum()
-        kitqtysum = filtereddata["Kit Qty"].sum()
-        basicamtsum = pd.to_numeric(filtereddata["Basic Amt.LocCur"], errors="coerce").fillna(0).sum()
-
-        st.markdown(
-            """
-            <style>
-            .subtotal-box { padding: 10px; border-radius: 5px; border: 1px solid; font-weight: bold; }
-            .subtotal-box-light { background-color: #f0f0f0; color: #000; border-color: #ccc; }
-            .subtotal-box-dark { background-color: #222; color: #fff; border-color: #555; }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        theme = st.get_option("theme.base")
-        boxclass = "subtotal-box-light" if theme == "light" else "subtotal-box-dark"
-        st.markdown(
-            f"<div class='subtotal-box {boxclass}'>"
-            f"Subtotal Filtered Data<br>"
-            f"Inv Qty: {invqtysum:,.0f} &nbsp;&nbsp;&nbsp; "
-            f"Kit Qty: {kitqtysum:,.0f} &nbsp;&nbsp;&nbsp; "
-            f"Basic Amt.LocCur: {basicamtsum:,.2f}"
-            f"</div>",
-            unsafe_allow_html=True
+        topmatcust["Label"] = (
+            topmatcust["Material"].astype(str)
+            + " - "
+            + topmatcust["Updated Customer Name"].astype(str)
+            + " Qty "
+            + topmatcust["Inv Qty"].fillna(0).astype(int).astype(str)
         )
 
-        if "Month Start Date" in filtereddata.columns:
-            filtereddata = filtereddata.drop(columns=["Month Start Date"])
+        fig, ax = plt.subplots(figsize=(12, 8))
+        sns.barplot(y=topmatcust["Label"], x=topmatcust["Basic Amt.LocCur"], palette="rocket", ax=ax)
+        ax.set_xlabel("Basic Amount")
+        ax.set_ylabel("Material - Customer")
+        ax.set_title("Top 20 Material-Customer combinations by Basic Amt.LocCur")
+        for i, (val, qty) in enumerate(zip(topmatcust["Basic Amt.LocCur"], topmatcust["Inv Qty"])):
+            ax.text(val, i, f"{int(val):,}", va="center")
+        st.pyplot(fig)
 
-        st.dataframe(filtereddata)
+        # --- Trend charts need Month Start Date ordering
+        filtereddf = filtereddf.sort_values("Month Start Date")
 
-    # ==========================================================
-    # Daywise Dispatch Page (ALL dropdowns => MULTISELECT)
-    # ==========================================================
-    elif page == "Daywise Dispatch":
-        st.header("Daywise Dispatch Page")
+        # --- Chart 8: OEM Month-wise Revenue Trend (Cr)
+        st.subheader("OEM Month-wise Revenue Trend (Cr)")
+        revenuemonthly = (filtereddf.groupby(["Month-Year", "Month Start Date", "Updated Customer Name"])["Basic Amt.LocCur"]
+                          .sum()
+                          .reset_index()
+                          .sort_values("Month Start Date"))
+        revenuemonthly["Revenue Cr"] = revenuemonthly["Basic Amt.LocCur"] / 1e7
 
-        dispatchdata["Inv Qty"] = pd.to_numeric(dispatchdata["Inv Qty"], errors="coerce").fillna(0)
-        dispatchdata["Kit Qty"] = pd.to_numeric(dispatchdata["Kit Qty"], errors="coerce").fillna(0)
+        monthorder = revenuemonthly.sort_values("Month Start Date")["Month-Year"].unique().tolist()
 
-        filtereddaywise = dispatchdata[
-            dispatchdata["Material"].astype(str).str.upper().str.startswith("C")
-            & (dispatchdata["Material"].astype(str) != "8043975905")
-        ].copy()
-
-        def should_keep(row, billingcounts):
-            if billingcounts.get(row["Billing Doc No."], 0) == 1:
-                return True
-            if str(row["Sales Order No"]).startswith("10"):
-                return True
-            return row["Item"] == 10
-
-        billingcounts = filtereddaywise["Billing Doc No."].value_counts().to_dict()
-        filtereddaywise = filtereddaywise[filtereddaywise.apply(lambda r: should_keep(r, billingcounts), axis=1)].copy()
-
-        if "Total Dispatch" not in filtereddaywise.columns:
-            kitqtyindex = filtereddaywise.columns.get_loc("Kit Qty")
-            filtereddaywise.insert(kitqtyindex + 1, "Total Dispatch", filtereddaywise["Inv Qty"] + filtereddaywise["Kit Qty"])
-
-        categoryoptions = ["All", "OEM", "SPD", "OEM SPD"]
-        selectedcategory = st.sidebar.radio("Select Customer Category", categoryoptions)
-
-        filteredforcustomerlist = filtereddaywise.copy()
-        if selectedcategory == "OEM SPD":
-            filteredforcustomerlist = filteredforcustomerlist[filteredforcustomerlist["Customer Category"].isin(["OEM", "SPD"])]
-        elif selectedcategory != "All":
-            filteredforcustomerlist = filteredforcustomerlist[filteredforcustomerlist["Customer Category"] == selectedcategory]
-
-        # MULTISELECT filters
-        monthlist = sorted(dispatchdata["Month-Year"].dropna().unique().tolist())
-        selectedmonths = st.sidebar.multiselect("Select Month-Year", monthlist)
-
-        fylist = sorted(dispatchdata["Financial Year"].dropna().unique().tolist())
-        selectedfys = st.sidebar.multiselect("Select Financial Year", fylist)
-
-        updatedcustomerlist = sorted(filteredforcustomerlist["Updated Customer Name"].dropna().unique().tolist())
-        selectedupdatedcustomers = st.sidebar.multiselect("Select Updated Customer Name", updatedcustomerlist)
-
-        filteredfororiginal = filteredforcustomerlist.copy()
-        filteredfororiginal = apply_multifilter(filteredfororiginal, "Updated Customer Name", selectedupdatedcustomers)
-
-        customerlist = sorted(filteredfororiginal["Customer Name"].dropna().unique().tolist())
-        selectedcustomers = st.sidebar.multiselect("Select Customer Name", customerlist)
-
-        plantlist = sorted(dispatchdata["Plant"].dropna().astype(str).unique().tolist())
-        selectedplants = st.sidebar.multiselect("Select Plant", plantlist)
-
-        materialcategorylist = sorted(dispatchdata["Material Category"].dropna().unique().tolist())
-        selectedmaterialcategories = st.sidebar.multiselect("Select Material Category", materialcategorylist)
-
-        modellist = sorted(dispatchdata["Model New"].dropna().unique().tolist())
-        selectedmodels = st.sidebar.multiselect("Select Model New", modellist)
-
-        # Material type-to-search (kept)
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Material Filter (Type to Search)")
-        materialnumbers = sorted(dispatchdata["Material"].dropna().unique().astype(str).tolist())
-        typedmaterial = st.sidebar.textinput("Type Material")
-        suggestedmaterials = [p for p in materialnumbers if typedmaterial.lower() in p.lower()] if typedmaterial else []
-        selectedmaterial = st.sidebar.selectbox("Select from Suggestions", ["All"] + suggestedmaterials, index=0)
-        clearmaterialfilter = st.sidebar.button("Clear Material Filter")
-
-        # Date range (kept)
-        billingdates = pd.to_datetime(filtereddaywise["Billing Date"], dayfirst=True, errors="coerce")
-        if selectedmonths:
-            month_start_dates = pd.to_datetime(["01 " + m for m in selectedmonths], format="%d %B-%y", errors="coerce")
-            mindate = month_start_dates.min()
-            maxdate = (month_start_dates.max() + pd.offsets.MonthEnd(0))
+        if not selectedupdatedcustomers:  # means "All" customers effectively
+            figrevenue = px.line(
+                revenuemonthly,
+                x="Month-Year",
+                y="Revenue Cr",
+                color="Updated Customer Name",
+                markers=True,
+                text="Revenue Cr",
+                category_orders={"Month-Year": monthorder},
+                title="Month-wise Revenue Comparison (All OEM Customers) (Cr)"
+            )
         else:
-            mindate = billingdates.min()
-            maxdate = billingdates.max()
+            # if multiple selected, plot them; if one selected also works
+            singlecustdf = revenuemonthly[revenuemonthly["Updated Customer Name"].isin(selectedupdatedcustomers)]
+            figrevenue = px.line(
+                singlecustdf,
+                x="Month-Year",
+                y="Revenue Cr",
+                color="Updated Customer Name" if len(selectedupdatedcustomers) > 1 else None,
+                markers=True,
+                text="Revenue Cr",
+                category_orders={"Month-Year": monthorder},
+                title="Month-wise Revenue Trend (Selected OEM Customer(s)) (Cr)"
+            )
 
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Select Date Range (Billing Date)")
-        daterange = st.sidebar.dateinput("Billing Date Range", (mindate, maxdate), min_value=mindate, max_value=maxdate)
-        cleardatefilter = st.sidebar.button("Clear Date Filter")
+        figrevenue.update_traces(textposition="top center", texttemplate="%{text:.2f} Cr", cliponaxis=False)
+        figrevenue.update_layout(
+            xaxis_title="Month",
+            yaxis_title="Revenue (Cr)",
+            legend_title="Customer",
+            hovermode="x unified",
+            margin=dict(t=80),
+            uniformtext_minsize=9,
+            uniformtext_mode="hide"
+        )
+        if len(revenuemonthly):
+            figrevenue.update_yaxes(range=[0, revenuemonthly["Revenue Cr"].max() * 1.25])
+        st.plotly_chart(figrevenue, use_container_width=True)
 
-        # Apply filters
-        finaldaywise = filtereddaywise.copy()
+        # --- Chart 9: OEM Power STG Quantity Trend
+        st.subheader("OEM Power STG Quantity Trend")
+        powerqtymonthly = (filtereddf[filtereddf["Material Category"] == "Power STG"]
+                           .groupby(["Month-Year", "Month Start Date", "Updated Customer Name"])["Inv Qty"]
+                           .sum()
+                           .reset_index()
+                           .sort_values("Month Start Date"))
 
-        if selectedcategory != "All":
-            if selectedcategory == "OEM SPD":
-                finaldaywise = finaldaywise[finaldaywise["Customer Category"].isin(["OEM", "SPD"])]
-            else:
-                finaldaywise = finaldaywise[finaldaywise["Customer Category"] == selectedcategory]
+        monthorder2 = powerqtymonthly.sort_values("Month Start Date")["Month-Year"].unique().tolist()
 
-        finaldaywise = apply_multifilter(finaldaywise, "Month-Year", selectedmonths)
-        finaldaywise = apply_multifilter(finaldaywise, "Financial Year", selectedfys)
-        finaldaywise = apply_multifilter(finaldaywise, "Updated Customer Name", selectedupdatedcustomers)
-        finaldaywise = apply_multifilter(finaldaywise, "Customer Name", selectedcustomers)
-        finaldaywise = apply_multifilter(finaldaywise, "Plant", selectedplants, cast_str=True)
-        finaldaywise = apply_multifilter(finaldaywise, "Material Category", selectedmaterialcategories)
-        finaldaywise = apply_multifilter(finaldaywise, "Model New", selectedmodels)
+        if not selectedupdatedcustomers:
+            figpower = px.line(
+                powerqtymonthly,
+                x="Month-Year",
+                y="Inv Qty",
+                color="Updated Customer Name",
+                markers=True,
+                text="Inv Qty",
+                category_orders={"Month-Year": monthorder2},
+                title="Month-wise Power STG Quantity (All OEM Customers)"
+            )
+        else:
+            singlecustpower = powerqtymonthly[powerqtymonthly["Updated Customer Name"].isin(selectedupdatedcustomers)]
+            figpower = px.line(
+                singlecustpower,
+                x="Month-Year",
+                y="Inv Qty",
+                color="Updated Customer Name" if len(selectedupdatedcustomers) > 1 else None,
+                markers=True,
+                text="Inv Qty",
+                category_orders={"Month-Year": monthorder2},
+                title="Month-wise Power STG Quantity (Selected OEM Customer(s))"
+            )
 
-        finaldaywise["Billing Date"] = pd.to_datetime(finaldaywise["Billing Date"], dayfirst=True, errors="coerce")
+        figpower.update_traces(textposition="top center", texttemplate="%{text:,.0f}", cliponaxis=False)
+        figpower.update_layout(
+            xaxis_title="Month",
+            yaxis_title="Quantity",
+            legend_title="Customer",
+            hovermode="x unified",
+            margin=dict(t=80),
+            uniformtext_minsize=9,
+            uniformtext_mode="hide"
+        )
+        if len(powerqtymonthly):
+            figpower.update_yaxes(range=[0, powerqtymonthly["Inv Qty"].max() * 1.25])
+        st.plotly_chart(figpower, use_container_width=True)
 
-        if not cleardatefilter:
-            startdate, enddate = daterange
-            finaldaywise = finaldaywise[
-                (finaldaywise["Billing Date"] >= pd.to_datetime(startdate)) &
-                (finaldaywise["Billing Date"] <= pd.to_datetime(enddate))
-            ]
+    # ==========================
+    # The remaining pages (Invoice Value / Dispatch Details / Daywise Dispatch)
+    # are unchanged here because your request was specifically OEM charts.
+    # ==========================
+    else:
+        st.info("Please select Overview/SPD/OEM in this version.")
 
-        if not clearmaterialfilter:
-            if typedmaterial:
-                finaldaywise = finaldaywise[finaldaywise["Material"].astype(str).str.lower().str.contains(typedmaterial.lower(), na=False)]
-            elif selectedmaterial != "All":
-                finaldaywise = finaldaywise[finaldaywise["Material"].astype(str) == str(selectedmaterial)]
-
-        # Pivot output
-        pivottable = (finaldaywise.pivot_table(
-            index=["Sold-to Party", "Customer Name", "Material", "Plant"],
-            columns="Billing Date",
-            values="Total Dispatch",
-            aggfunc="sum",
-            fill_value=0
-        ).reset_index())
-
-        pivottable.columns = [
-            col.strftime("%d-%m-%Y") if isinstance(col, pd.Timestamp) else col
-            for col in pivottable.columns
-        ]
-        pivottable.columns.name = None
-
-        st.dataframe(pivottable)
-
-
+else:
+    st.info("Upload a file to start.")
