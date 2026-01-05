@@ -191,7 +191,11 @@ if uploaded_file is not None:
         figtotalsales.update_layout(yaxis_tickprefix="", xaxis_title="Month-Year",
                                     uniformtext_minsize=8, uniformtext_mode="hide",
                                     bargap=0.3, yaxis=dict(range=[0, ymax1]))
-        figtotalsales.update_traces(texttemplate="%{text:,.0f}", textposition="outside", marker_linewidth=0.5, width=0.3)
+        figtotalsales.update_traces(
+            texttemplate="%{text:,.0f}",
+            textposition="outside",
+            marker_line_width=0.5
+        )
 
         splitsales = (overviewdata[overviewdata["Customer Category"].isin(["OEM", "SPD"])]
                       .groupby(["Month-Year", "Month Start Date", "Customer Category"])["Basic Amt.LocCur"]
@@ -697,3 +701,4 @@ if uploaded_file is not None:
         pivottable.columns.name = None
 
         st.dataframe(pivottable)
+
