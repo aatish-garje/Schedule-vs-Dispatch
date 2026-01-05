@@ -211,7 +211,7 @@ if uploaded_file is not None:
         figoemspd.update_layout(yaxis_tickprefix="", xaxis_title="Month-Year",
                                 uniformtext_minsize=8, uniformtext_mode="hide",
                                 bargap=0.3, yaxis=dict(range=[0, ymax2]))
-        figoemspd.update_traces(texttemplate="%{text:,.0f}", textposition="outside", marker_linewidth=0.5, width=0.2)
+        figoemspd.update_traces(texttemplate="%{text:,.0f}", textposition="outside", marker_line_width=0.5)
 
         plantsales = overviewdata.groupby("Plant")["Basic Amt.LocCur"].sum().reset_index()
         plantsales["Plant"] = plantsales["Plant"].astype(str)
@@ -227,7 +227,7 @@ if uploaded_file is not None:
                                     xaxis_title="Plant", uniformtext_minsize=8,
                                     uniformtext_mode="hide", bargap=0.3,
                                     yaxis=dict(range=[0, ymax3]))
-        figplantsales.update_traces(texttemplate="%{text:,.0f}", textposition="outside", marker_linewidth=0.5, width=0.3)
+        figplantsales.update_traces(texttemplate="%{text:,.0f}", textposition="outside", marker_line_width=0.5)
 
         st.plotly_chart(figtotalsales, use_container_width=True)
         st.plotly_chart(figoemspd, use_container_width=True)
@@ -701,4 +701,5 @@ if uploaded_file is not None:
         pivottable.columns.name = None
 
         st.dataframe(pivottable)
+
 
